@@ -1,0 +1,102 @@
+[
+    {   
+        "id": 1,
+        "dino_model": "small",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["cosine","euclidean"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {   
+        "id": 2,
+        "dino_model": "small",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["cosine","euclidean"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {   
+        "id": 3,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["cosine","euclidean"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {   
+        "id": 4,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["cosine","euclidean"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 5,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    }
+]
