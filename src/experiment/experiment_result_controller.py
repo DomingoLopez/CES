@@ -6,8 +6,10 @@ import pickle
 import shutil
 import sys
 from matplotlib.colors import ListedColormap
+import mlflow
+from mlflow.entities import ViewType
 import seaborn as sns
-from typing import Optional
+from typing import NewType, Optional
 from matplotlib import pyplot as plt
 import matplotlib.gridspec as gridspec
 import numpy as np
@@ -30,6 +32,7 @@ class ExperimentResultController():
 
     def __init__(self, 
                  eval_method="silhouette",
+                 n_images=7072,
                  dino_model="small",
                  experiment_id=None,
                  n_cluster_range=None,
@@ -40,6 +43,7 @@ class ExperimentResultController():
     
         # Setup attrs
         self.eval_method = eval_method
+        self.n_images = n_images
         self.dino_model = dino_model
         self.experiment_id = experiment_id
         self.n_cluster_range = n_cluster_range
@@ -53,12 +57,6 @@ class ExperimentResultController():
             logger.add(sys.stdout, level="DEBUG")
         else:
             logger.add(sys.stdout, level="INFO")
-
-        # Results dir
-        self.results_dir = (
-            Path(__file__).resolve().parent
-            / f"results"
-        )
 
         # Clusters dir
         self.cluster_dir = (
@@ -75,43 +73,66 @@ class ExperimentResultController():
         # Get original embeddings (Just for representation)
         # This is a bit messy. Refactor asap.
         if self.dino_model == "small":
-            embeddings_name = "embeddings_dinov2_vits14_5066.pkl"
+            embeddings_name = f"embeddings_dinov2_vits14_{self.n_images}.pkl"
         else:
-            embeddings_name = "embeddings_dinov2_vitb14_5066.pkl"
+            embeddings_name = f"embeddings_dinov2_vitb14_{self.n_images}.pkl"
         original_embeddings_path = Path(__file__).resolve().parent.parent / f"dinov2_inference/cache/{embeddings_name}"
         with open(original_embeddings_path, "rb") as f:
             self.original_embeddings = pickle.load(f)
         
 
-    
-    def __load_all_experiments(self, experiment_id = None):
+    def __load_all_experiments(self, experiment_id=None):
         """
-        Loads all experiment of given experiment id.
+        Carga todos los runs de MLflow para el experiment_id dado.
+        Si experiment_id es None, carga todos los experimentos disponibles.
+        Asigna el resultado final a self.results_df.
         """
-        experiment_files = Path(self.results_dir).rglob("*.pkl") if experiment_id is None else Path(os.path.join(self.results_dir, f"experiment_{experiment_id}")).rglob("*.pkl")
-        experiments = []
-        for file in experiment_files:
-            try:
-                with open(file, "rb") as f:
-                    result = pickle.load(f)
-                    
-                # Check if the loaded result is a valid DataFrame
-                if isinstance(result, pd.DataFrame) and not result.empty:
-                    result = result.reset_index().rename(columns={"index": "original_index"})
-                    experiments.append(result)
-                else:
-                    logger.warning(f"Invalid or empty result file: {file}")
-            
-            except Exception as e:
-                logger.warning(f"Could not load {file}: {e}")
+        try:
+            # 1) Determinamos qué experimentos cargar
+            if experiment_id is not None:
+                experiment_ids = [experiment_id]
+            else:
+                # Si no se pasa experiment_id, cargamos todos
+                all_exps = mlflow.search_experiments()  # Retorna lista de Experiment
+                experiment_ids = [exp.experiment_id for exp in all_exps]
 
-        # Combine all valid results
-        if experiments:
-            self.results_df = pd.concat(experiments, ignore_index=True)
-        else:
+            # 2) Obtenemos los runs de MLflow (sólo activos, por ejemplo)
+            runs_df = mlflow.search_runs(
+                experiment_ids=experiment_ids,
+                run_view_type=ViewType.ALL,      # Para que aparezcan todos los runs, no solo los 'activos'
+                filter_string='attribute.status = "FINISHED"'  # Solo mostrar los que ya han finalizado
+            )
+
+            if runs_df.empty:
+                # Comportamiento similar al original: dejar self.results_df vacío y mostrar un warning
+                self.results_df = pd.DataFrame()
+                logger.warning("No experiments found with the specified criteria.")
+                return
+
+            # 3) Emulamos la lógica de "reset_index" y "rename columns" del original
+            runs_df = runs_df.reset_index().rename(columns={"index": "original_index"})
+
+            # 4) Si en tu flujo original necesitabas columnas específicas (por ejemplo n_clusters, best_params, etc.)
+            #    que se hubieran registrado como params o metrics, puedes mapearlas:
+            if "params.n_clusters" in runs_df.columns:
+                runs_df["n_clusters"] = runs_df["params.n_clusters"].astype(float).fillna(-1)
+            if "params.best_params" in runs_df.columns:
+                runs_df["best_params"] = runs_df["params.best_params"]
+            if "metrics.score_w_penalty" in runs_df.columns:
+                runs_df["score_w_penalty"] = runs_df["metrics.score_w_penalty"]
+            if "metrics.score_w/o_penalty" in runs_df.columns:
+                runs_df["score_without_penalty"] = runs_df["metrics.score_w/o_penalty"]
+            if "params.reduction_params" in runs_df.columns:
+                runs_df["reduction_params"] = runs_df["params.reduction_params"]
+
+            # 5) Asignamos el DataFrame final a self.results_df
+            self.results_df = runs_df
+            logger.info(f"Se han cargado {len(runs_df)} runs de MLflow para experiment_ids={experiment_ids}")
+
+        except Exception as e:
+            # En caso de cualquier error, dejamos un DataFrame vacío e informamos
+            logger.warning(f"Could not load runs from MLflow for experiment_id={experiment_id}: {e}")
             self.results_df = pd.DataFrame()
-            logger.warning("No experiments found with the specified eval_method.")
-
 
 
     def get_top_k_experiments(self, top_k: int) -> pd.DataFrame:
