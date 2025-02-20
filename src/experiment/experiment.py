@@ -263,7 +263,7 @@ class Experiment():
             return
 
         # Nombre del experimento
-        mlflow.set_experiment(self._id)
+        mlflow.set_experiment(f"{self._id}_{self._bbdd}_{self._dino_model}_{self._dim_red}_{self._eval_method}")
 
         param_combinations = self.__get_param_combinations()
 
@@ -356,6 +356,7 @@ class Experiment():
         Applies preprocessing steps including normalization, scaling, and dimensionality reduction.
         """
         preprocces_obj = Preprocess(embeddings=self._data, 
+                                    bbdd=self._bbdd,
                                     dino_model = self._dino_model,
                                     scaler=self._scaler, 
                                     normalization=self._normalization,

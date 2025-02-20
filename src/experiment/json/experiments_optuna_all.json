@@ -85,6 +85,26 @@
         "optimizer" : "optuna",
         "optuna_trials": 400,
         "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_bouldin",
+        "penalty" : null,
+        "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 6,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
         "scaler" : "standard",
         "dim_red" : "umap",
         "reduction_parameters": {
@@ -97,6 +117,46 @@
         "eval_method" : "davies_bouldin",
         "penalty" : null,
         "penalty_range" : null,
+        "cache" : 1
+    },
+    {
+        "id": 7,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : null,
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "silhouette_noise",
+        "penalty" : "range",
+        "penalty_range" : [100, 600],
+        "cache" : 1
+    },
+    {
+        "id": 8,
+        "dino_model": "base",
+        "optimizer" : "optuna",
+        "optuna_trials": 400,
+        "normalization": true,
+        "scaler" : "standard",
+        "dim_red" : "umap",
+        "reduction_parameters": {
+            "metric": ["euclidean","cosine"],
+            "n_components": [2,3,4,5],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
+        },
+        "clustering" : "hdbscan",
+        "eval_method" : "davies_noise",
+        "penalty" : "range",
+        "penalty_range" : [100, 600],
         "cache" : 1
     }
 ]
