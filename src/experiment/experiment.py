@@ -17,6 +17,14 @@ from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
 import mlflow
 
+import warnings
+
+warnings.filterwarnings(
+    "ignore",
+    message=".*force_all_finite.*",
+    category=FutureWarning
+)
+
 
 class Experiment():
     """
@@ -269,7 +277,7 @@ class Experiment():
 
         for i,reduction_params in enumerate(param_combinations):
             # Trackeamos experiment
-            with mlflow.start_run(run_name=i):
+            with mlflow.start_run(run_name=f"run_{str(i)}"):
                 embeddings = self.__apply_preprocessing(reduction_params)
 
                 clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)

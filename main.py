@@ -42,7 +42,6 @@ def run_experiments(file, images, bbdd) -> None:
 
     for config in experiments_config:
         id = config.get("id")
-        bbdd = config.get("bbdd")
         dino_model = config.get("dino_model","small")
         optimizer = config.get("optimizer", "optuna")
         optuna_trials = config.get("optuna_trials", None)
@@ -89,61 +88,61 @@ if __name__ == "__main__":
     # image_path = "./data/twitter"
 
     # Path para pruebas
-    image_path ="./data/test"
-    bbdd = "test"
+    image_path ="./data/flickr/flickr_validated_imgs_7000"
+    bbdd = "flickr"
     images = load_images(image_path)
     experiments_file = "src/experiment/json/experiments_optuna_all.json"
     run_experiments(experiments_file, images, bbdd)
-    # # Classification level to analyze
-    # classification_lvl = [3]
-    # #prompts = [1,2]
-    # prompts = [3]
-    # n_lvlm_categories = 2
-    # #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
-    # llava_models = ["llava1-6_7b"]
-    # # Cluster Range to filter
-    # n_cluster_range = (40,300)
+    # Classification level to analyze
+    classification_lvl = [3]
+    #prompts = [1,2]
+    prompts = [3]
+    n_lvlm_categories = 2
+    #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
+    llava_models = ["llava1-6_7b"]
+    # Cluster Range to filter
+    n_cluster_range = (40,500)
 
 
-    # # Obtain experiments results
-    # with open(experiments_file, 'r') as f:
-    #     experiments_config = json.load(f)
+    # Obtain experiments results
+    with open(experiments_file, 'r') as f:
+        experiments_config = json.load(f)
 
-    # result_list = []
-    # result_list_top_trials = []
-    # for config in experiments_config:
-    #     eval_method = config.get("eval_method", "silhouette")
-    #     id = config.get("id",1)
-    #     dino_model = config.get("dino_model")
-    #     dim_red = config.get("dim_red","umap")
+    result_list = []
+    result_list_top_trials = []
+    for config in experiments_config:
+        eval_method = config.get("eval_method", "silhouette")
+        id = config.get("id",1)
+        dino_model = config.get("dino_model")
+        dim_red = config.get("dim_red","umap")
 
-    #     # APPLY FILTERS FROM REDUCTION HIPERPARAMS
-    #     if dim_red == "umap":
-    #         reduction_params = {
-    #             "n_components": (2,25),
-    #             "n_neighbors": (3,60),
-    #             "min_dist": (0.1, 0.8)
-    #         }
-    #     elif dim_red == "tsne":
-    #         reduction_params = {
-    #             "n_components": (2,25),
-    #             "perplexity": (4,60),
-    #             "early_exaggeration": (7, 16)
-    #         }
-    #     else:
-    #         reduction_params = {
-    #             "n_components": (2,25)
-    #         }
+        # APPLY FILTERS FROM REDUCTION HIPERPARAMS
+        if dim_red == "umap":
+            reduction_params = {
+                "n_components": (2,25),
+                "n_neighbors": (3,60),
+                "min_dist": (0.1, 0.8)
+            }
+        elif dim_red == "tsne":
+            reduction_params = {
+                "n_components": (2,25),
+                "perplexity": (4,60),
+                "early_exaggeration": (7, 16)
+            }
+        else:
+            reduction_params = {
+                "n_components": (2,25)
+            }
 
-    #     experiment_controller = ExperimentResultController(eval_method, 
-    #                                                        dino_model,
-    #                                                        experiment_id=id, 
-    #                                                        n_cluster_range=n_cluster_range,
-    #                                                        reduction_params=reduction_params)
-    #     experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
-    #     best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
-    #     experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
-    #     experiment_controller.plot_all(best_experiment)
+        experiment_controller = ExperimentResultController(eval_method, 
+                                                           dino_model,
+                                                           experiment_id=id, 
+                                                           n_cluster_range=n_cluster_range,
+                                                           reduction_params=reduction_params)
+        experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
+        best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
+        experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
+        experiment_controller.plot_all(best_experiment)
         
 
     #     for class_lvl in classification_lvl:
