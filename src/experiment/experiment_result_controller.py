@@ -34,7 +34,7 @@ class ExperimentResultController():
                  eval_method="silhouette",
                  n_images=7072,
                  dino_model="small",
-                 experiment_id=None,
+                 experiment_name="1",
                  n_cluster_range=None,
                  reduction_params=None,
                  cache= True, 
@@ -45,7 +45,7 @@ class ExperimentResultController():
         self.eval_method = eval_method
         self.n_images = n_images
         self.dino_model = dino_model
-        self.experiment_id = experiment_id
+        self.experiment_name = experiment_name
         self.n_cluster_range = n_cluster_range
         self.reduction_params = reduction_params
         self.cache = cache
@@ -68,7 +68,7 @@ class ExperimentResultController():
         # Load all experiments for given eval_method
         self.results_df = None
         self.cluster_images_dict = None
-        self.__load_all_experiments(experiment_id)
+        self.__load_all_runs(experiment_name)
 
         # Get original embeddings (Just for representation)
         # This is a bit messy. Refactor asap.
@@ -81,57 +81,98 @@ class ExperimentResultController():
             self.original_embeddings = pickle.load(f)
         
 
-    def __load_all_experiments(self, experiment_id=None):
+    def __load_all_runs(self, experiment_name="1"):
         """
-        Carga todos los runs de MLflow para el experiment_id dado.
-        Si experiment_id es None, carga todos los experimentos disponibles.
-        Asigna el resultado final a self.results_df.
+        Loads all MLflow runs for the specified experiment by name.
         """
         try:
-            # 1) Determinamos qué experimentos cargar
-            if experiment_id is not None:
-                experiment_ids = [experiment_id]
+            # 1) Get the experiment_id from its name
+            if experiment_name:
+                experiment = mlflow.get_experiment_by_name(experiment_name)
+                if experiment is None:
+                    raise ValueError(f"Experiment '{experiment_name}' was not found in MLflow.")
+                experiment_ids = [experiment.experiment_id]
             else:
-                # Si no se pasa experiment_id, cargamos todos
-                all_exps = mlflow.search_experiments()  # Retorna lista de Experiment
-                experiment_ids = [exp.experiment_id for exp in all_exps]
+                raise ValueError("No experiment_name was provided.")
 
-            # 2) Obtenemos los runs de MLflow (sólo activos, por ejemplo)
+            # 2) Retrieve MLflow runs (finished ones, for instance)
             runs_df = mlflow.search_runs(
                 experiment_ids=experiment_ids,
-                run_view_type=ViewType.ALL,      # Para que aparezcan todos los runs, no solo los 'activos'
-                filter_string='attribute.status = "FINISHED"'  # Solo mostrar los que ya han finalizado
+                run_view_type=ViewType.ALL,  # Include all runs, not only active ones
+                filter_string='attribute.status = "FINISHED"'  # Only include finished runs
             )
 
             if runs_df.empty:
-                # Comportamiento similar al original: dejar self.results_df vacío y mostrar un warning
                 self.results_df = pd.DataFrame()
                 logger.warning("No experiments found with the specified criteria.")
                 return
 
-            # 3) Emulamos la lógica de "reset_index" y "rename columns" del original
+            # 3) Reset index and rename columns if necessary
             runs_df = runs_df.reset_index().rename(columns={"index": "original_index"})
 
-            # 4) Si en tu flujo original necesitabas columnas específicas (por ejemplo n_clusters, best_params, etc.)
-            #    que se hubieran registrado como params o metrics, puedes mapearlas:
-            if "params.n_clusters" in runs_df.columns:
-                runs_df["n_clusters"] = runs_df["params.n_clusters"].astype(float).fillna(-1)
-            if "params.best_params" in runs_df.columns:
-                runs_df["best_params"] = runs_df["params.best_params"]
-            if "metrics.score_w_penalty" in runs_df.columns:
-                runs_df["score_w_penalty"] = runs_df["metrics.score_w_penalty"]
-            if "metrics.score_w/o_penalty" in runs_df.columns:
-                runs_df["score_without_penalty"] = runs_df["metrics.score_w/o_penalty"]
-            if "params.reduction_params" in runs_df.columns:
-                runs_df["reduction_params"] = runs_df["params.reduction_params"]
+            # 4) Build a new DataFrame with your desired columns and order
+            #    Here is the mapping from MLflow param/metric columns to final names:
+            column_mapping = {
+                "params.id":                "id",
+                "params.bbdd":              "bbdd",
+                "params.clustering":        "clustering",
+                "params.eval_method":       "eval_method",
+                "params.optimizer":         "optimization",
+                "params.optuna_trials":     "optuna_trials",
+                "params.normalization":     "normalization",
+                "params.scaler":            "scaler",
+                "params.dim_red":           "dim_red",
+                "params.reduction_params":  "reduction_params",
+                "params.dimensions":        "dimensions",
+                "params.embeddings":        "embeddings",
+                "params.n_clusters":        "n_clusters",
+                "params.best_params":       "best_params",
+                "params.centers":           "centers",
+                "params.labels":            "labels",
+                "params.label_counter":     "label_counter",
+                "params.noise_not_noise":   "noise_not_noise",
+                "params.score_noise_ratio": "score_noise_ratio",
+                "params.penalty":           "penalty",
+                "params.penalty_range":     "penalty_range",
+                "metrics.score_w_penalty":  "score_w_penalty",
+                "metrics.score_w/o_penalty":"score_w/o_penalty",
+            }
 
-            # 5) Asignamos el DataFrame final a self.results_df
-            self.results_df = runs_df
-            logger.info(f"Se han cargado {len(runs_df)} runs de MLflow para experiment_ids={experiment_ids}")
+            # Desired final order of columns in the DataFrame
+            final_order = [
+                "id", "bbdd", "clustering", "eval_method", "optimization", "optuna_trials",
+                "normalization", "scaler", "dim_red", "reduction_params", "dimensions",
+                "embeddings", "n_clusters", "best_params", "centers", "labels",
+                "label_counter", "noise_not_noise", "score_noise_ratio", "penalty",
+                "penalty_range", "score_w_penalty", "score_w/o_penalty"
+            ]
+
+            # Create a new DataFrame with the desired columns
+            transformed_df = pd.DataFrame()
+
+            for old_col, new_col in column_mapping.items():
+                if old_col in runs_df.columns:
+                    transformed_df[new_col] = runs_df[old_col]
+                else:
+                    # If the old_col doesn't exist in runs_df, fill with NaN
+                    transformed_df[new_col] = pd.Series([None] * len(runs_df))
+            
+            # Reorder columns according to final_order
+            transformed_df = transformed_df[final_order]
+
+            # 5) Assign to self.results_df
+            self.results_df = transformed_df
+            logger.info(f"Loaded {len(runs_df)} runs from MLflow for experiment_ids={experiment_ids}. "
+                        f"Returning {len(self.results_df)} rows with the specified columns.")
+
+            # 5) Assign to self.results_df
+            self.results_df = transformed_df
+            logger.info(f"Loaded {len(runs_df)} runs from MLflow for experiment_ids={experiment_ids}. "
+                        f"Returning {len(self.results_df)} rows with the specified columns.")
 
         except Exception as e:
-            # En caso de cualquier error, dejamos un DataFrame vacío e informamos
-            logger.warning(f"Could not load runs from MLflow for experiment_id={experiment_id}: {e}")
+            # In case of any error, leave an empty DataFrame and log a warning
+            logger.warning(f"Could not load runs from MLflow for experiment_name='{experiment_name}': {e}")
             self.results_df = pd.DataFrame()
 
 
@@ -746,4 +787,19 @@ class ExperimentResultController():
 
 
 if __name__ == "__main__":
-    pass
+
+    reduction_params = {
+        "n_components": (2,25),
+        "n_neighbors": (3,60),
+        "min_dist": (0.1, 0.8)
+    }
+    n_cluster_range = (40,500)
+    
+    experiment_controller = ExperimentResultController("silhouette", 
+                                                           13,
+                                                           "small",
+                                                           experiment_name="1_test_small_umap_silhouette", 
+                                                           n_cluster_range=n_cluster_range,
+                                                           reduction_params=reduction_params)
+    print(experiment_controller.get_top_k_experiments(top_k=5))
+    

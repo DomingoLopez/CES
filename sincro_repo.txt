@@ -1,0 +1,3 @@
+rsync -avz -e ssh --exclude 'data/' CES/ dlopez@ngpu.ugr.es:/mnt/homeGPU/dlopez/CES/
+rsync -avz -e ssh --exclude 'data/' dlopez@ngpu.ugr.es:/mnt/homeGPU/dlopez/CES/ CES/ 
+
