@@ -39,7 +39,7 @@ def run_experiments(file, images, bbdd) -> None:
     # Load json file with all experiments
     with open(file, 'r') as f:
         experiments_config = json.load(f)
-
+    # For every configuration, run experiments
     for config in experiments_config:
         id = config.get("id")
         dino_model = config.get("dino_model","small")
@@ -54,6 +54,7 @@ def run_experiments(file, images, bbdd) -> None:
         penalty = config.get("penalty", None)
         penalty_range = config.get("penalty_range", None)
         cache = config.get("cache", True)
+        experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
         # Make and Run Experiment
         logger.info(f"LOADING EXPERIMENT: {id}")
 
@@ -78,6 +79,17 @@ def run_experiments(file, images, bbdd) -> None:
         )
         experiment.run_experiment()
 
+        # Generate artifacts and results for every experiment. 
+        experiment_controller = ExperimentResultController(eval_method, 
+                                                            len(images),
+                                                            dino_model,
+                                                            dim_red,
+                                                            experiment_name=experiment_name)
+        runs_filtered = experiment_controller.get_top_k_runs(top_k=5)
+        best_run = experiment_controller.get_best_run_data(runs_filtered)
+        experiment_controller.create_cluster_dirs(images=images, run=best_run, knn=None)
+        experiment_controller.create_plots(best_run)
+
 
 if __name__ == "__main__": 
     
@@ -91,8 +103,7 @@ if __name__ == "__main__":
     # bbdd = "flickr"
     # experiments_file = "src/experiment/json/experiments_optuna_all.json"
 
-    images = load_images(image_path)
-    
+    images = load_images(image_path)    
     run_experiments(experiments_file, images, bbdd)
     # Classification level to analyze
     classification_lvl = [3]
@@ -101,8 +112,7 @@ if __name__ == "__main__":
     n_lvlm_categories = 2
     #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
     llava_models = ["llava1-6_7b"]
-    # Cluster Range to filter
-    n_cluster_range = (40,500)
+
 
 
     # Obtain experiments config
@@ -119,34 +129,8 @@ if __name__ == "__main__":
         dim_red = config.get("dim_red","umap")
         experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
 
-        # APPLY FILTERS FROM REDUCTION HIPERPARAMS
-        if dim_red == "umap":
-            reduction_params = {
-                "n_components": (2,25),
-                "n_neighbors": (3,60),
-                "min_dist": (0.1, 0.8)
-            }
-        elif dim_red == "tsne":
-            reduction_params = {
-                "n_components": (2,25),
-                "perplexity": (4,60),
-                "early_exaggeration": (7, 16)
-            }
-        else:
-            reduction_params = {
-                "n_components": (2,25)
-            }
 
-        # experiment_controller = ExperimentResultController(eval_method, 
-        #                                                    len(images),
-        #                                                    dino_model,
-        #                                                    experiment_name=experiment_name, 
-        #                                                    n_cluster_range=n_cluster_range,
-        #                                                    reduction_params=reduction_params)
-        # experiments_filtered = experiment_controller.get_top_k_experiments(top_k=5)
-        # best_experiment = experiment_controller.get_best_experiment_data(experiments_filtered)
-        # experiment_controller.create_cluster_dirs(images=images, experiment=best_experiment)
-        # experiment_controller.plot_all(best_experiment)
+        
         
 
     #     for class_lvl in classification_lvl:

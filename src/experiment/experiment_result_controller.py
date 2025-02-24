@@ -34,9 +34,8 @@ class ExperimentResultController():
                  eval_method="silhouette",
                  n_images=7072,
                  dino_model="small",
+                 dim_red="umap",
                  experiment_name="1",
-                 n_cluster_range=None,
-                 reduction_params=None,
                  cache= True, 
                  verbose= False,
                  **kwargs):
@@ -46,11 +45,27 @@ class ExperimentResultController():
         self.n_images = n_images
         self.dino_model = dino_model
         self.experiment_name = experiment_name
-        self.n_cluster_range = n_cluster_range
-        self.reduction_params = reduction_params
         self.cache = cache
         self.verbose = verbose
         
+        # Filters for different configurations
+        self.n_cluster_range  = (100,500) 
+        if dim_red == "umap":
+            self.reduction_params = {
+                "n_components": (2,25),
+                "n_neighbors": (3,60),
+                "min_dist": (0.1, 0.8)
+            }
+        elif dim_red == "tsne":
+            self.reduction_params = {
+                "n_components": (2,25),
+                "perplexity": (4,60),
+                "early_exaggeration": (7, 16)
+            }
+        else:
+            self.reduction_params = {
+                "n_components": (2,25)
+            }
 
         logger.remove()
         if verbose:
@@ -65,10 +80,10 @@ class ExperimentResultController():
         )
         self.cluster_dir.mkdir(parents=True, exist_ok=True)
 
-        # Load all experiments for given eval_method
+        # Load all runs for given experiment
         self.results_df = None
         self.cluster_images_dict = None
-        self.__load_all_runs(experiment_name)
+        self.__load_all_runs(self.experiment_name)
 
         # Get original embeddings (Just for representation)
         # This is a bit messy. Refactor asap.
@@ -81,16 +96,16 @@ class ExperimentResultController():
             self.original_embeddings = pickle.load(f)
         
 
-    def __load_all_runs(self, experiment_name="1"):
+    def __load_all_runs(self):
         """
         Loads all MLflow runs for the specified experiment by name.
         """
         try:
             # 1) Get the experiment_id from its name
-            if experiment_name:
-                experiment = mlflow.get_experiment_by_name(experiment_name)
+            if self.experiment_name:
+                experiment = mlflow.get_experiment_by_name(self.experiment_name)
                 if experiment is None:
-                    raise ValueError(f"Experiment '{experiment_name}' was not found in MLflow.")
+                    raise ValueError(f"Experiment '{self.experiment_name}' was not found in MLflow.")
                 experiment_ids = [experiment.experiment_id]
             else:
                 raise ValueError("No experiment_name was provided.")
@@ -135,7 +150,7 @@ class ExperimentResultController():
                 "params.penalty":           "penalty",
                 "params.penalty_range":     "penalty_range",
                 "metrics.score_w_penalty":  "score_w_penalty",
-                "metrics.score_w/o_penalty":"score_w/o_penalty",
+                "metrics.score_wo_penalty":"score_wo_penalty",
             }
 
             # Desired final order of columns in the DataFrame
@@ -144,7 +159,7 @@ class ExperimentResultController():
                 "normalization", "scaler", "dim_red", "reduction_params", "dimensions",
                 "embeddings", "n_clusters", "best_params", "centers", "labels",
                 "label_counter", "noise_not_noise", "score_noise_ratio", "penalty",
-                "penalty_range", "score_w_penalty", "score_w/o_penalty"
+                "penalty_range", "score_w_penalty", "score_wo_penalty"
             ]
 
             # Create a new DataFrame with the desired columns
@@ -160,6 +175,13 @@ class ExperimentResultController():
             # Reorder columns according to final_order
             transformed_df = transformed_df[final_order]
 
+            # Transforms columsn
+            transformed_df["optuna_trials"] = pd.to_numeric(transformed_df["optuna_trials"], errors='coerce')
+            transformed_df["dimensions"] = pd.to_numeric(transformed_df["dimensions"], errors='coerce')
+            transformed_df["n_clusters"] = pd.to_numeric(transformed_df["n_clusters"], errors='coerce')
+            transformed_df["score_w_penalty"] = pd.to_numeric(transformed_df["score_w_penalty"], errors='coerce')
+            transformed_df["score_wo_penalty"] = pd.to_numeric(transformed_df["score_wo_penalty"], errors='coerce')
+
             # 5) Assign to self.results_df
             self.results_df = transformed_df
             logger.info(f"Loaded {len(runs_df)} runs from MLflow for experiment_ids={experiment_ids}. "
@@ -172,19 +194,19 @@ class ExperimentResultController():
 
         except Exception as e:
             # In case of any error, leave an empty DataFrame and log a warning
-            logger.warning(f"Could not load runs from MLflow for experiment_name='{experiment_name}': {e}")
+            logger.warning(f"Could not load runs from MLflow for experiment_name='{self.experiment_name}': {e}")
             self.results_df = pd.DataFrame()
 
 
-    def get_top_k_experiments(self, top_k: int) -> pd.DataFrame:
+    def get_top_k_runs(self, top_k: int) -> pd.DataFrame:
         """
-        Returns the top_k experiments based on the specified criteria.
+        Returns the top_k runs based on the specified criteria.
 
         Parameters:
-            top_k (int): Number of top experiments to return.
+            top_k (int): Number of top runs to return.
 
         Returns:
-            pd.DataFrame: Filtered DataFrame with the top_k experiments.
+            pd.DataFrame: Filtered DataFrame with the top_k runs.
         """
         
         # Validate n_cluster_range
@@ -204,19 +226,19 @@ class ExperimentResultController():
         
         # Verify df is loaded
         if self.results_df.shape[0] == 0 or self.results_df is None:
-            logger.warning("No experiments loaded. Returning an empty DataFrame.")
+            logger.warning("No runs loaded. Returning an empty DataFrame.")
             return pd.DataFrame()
 
 
         # Determine sorting column and order based on eval_method
         if self.eval_method == "davies_bouldin":
-            sort_column =  'score_w/o_penalty'
+            sort_column =  'score_wo_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
         elif self.eval_method == "davies_noise":
             sort_column = 'score_w_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
         elif self.eval_method == "silhouette":
-            sort_column =  'score_w/o_penalty'
+            sort_column =  'score_wo_penalty'
             ascending_order = False  # Higher is better for silhouette
         elif self.eval_method == "silhouette_noise":
             sort_column =  'score_w_penalty'
@@ -251,22 +273,22 @@ class ExperimentResultController():
             logger.warning("Filtered DataFrame is empty. Skipping sorting step.")
 
         if filtered_df.empty:
-            logger.warning("Filtered DataFrame is empty after applying filters. Returning top_k experiments from the entire dataset.")
+            logger.warning("Filtered DataFrame is empty after applying filters. Returning top_k runs from the entire dataset.")
             filtered_df = self.results_df.sort_values(by=sort_column, ascending=ascending_order)
 
-        # Select the top_k experiments
+        # Select the top_k runs
         top_k_df = filtered_df.head(top_k)
         
         return top_k_df
 
 
-    def get_best_experiment_data(self, filtered_df):
+    def get_best_run_data(self, filtered_df):
         """
-        Helper function to get the best experiment based on `experiment_type`.
+        Helper function to get the best run based on `experiment_type`.
 
         Parameters
         ----------
-        experiment_type : str
+        filtered_df : DataFrame
             "best" for best silhouette or "silhouette_noise_ratio" for best silhouette-to-noise ratio.
 
         Returns
@@ -283,17 +305,17 @@ class ExperimentResultController():
 
         # Determine sorting column and order based on eval_method
         if self.eval_method == "davies_bouldin":
-            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmin()]
+            df = filtered_df.loc[filtered_df["score_wo_penalty"].idxmin()]
         elif self.eval_method == "davies_noise":
             df = filtered_df.loc[filtered_df["score_w_penalty"].idxmin()]
         elif self.eval_method == "silhouette":
-            df = filtered_df.loc[filtered_df["score_w/o_penalty"].idxmax()]
+            df = filtered_df.loc[filtered_df["score_wo_penalty"].idxmax()]
         elif self.eval_method == "silhouette_noise":
             df = filtered_df.loc[filtered_df["score_w_penalty"].idxmax()]
         else:
             raise ValueError("Eval method not supported")
 
-        logger.info(f"Selected experiment with score: {df['score_w/o_penalty']:.3f}")
+        logger.info(f"selected run with score: {df['score_wo_penalty']:.3f}")
             
         return df
 
@@ -301,7 +323,7 @@ class ExperimentResultController():
 
 
 
-    def get_cluster_images_dict(self, images, experiment, knn=None, save_result=True):
+    def get_cluster_images_dict(self, images, run, knn=None, save_result=True):
         """
         Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
         Returns knn points for each cluster in dict format in case knn is not None
@@ -317,14 +339,14 @@ class ExperimentResultController():
         """
 
         cluster_images_dict = {}
-        labels = experiment['labels']
+        labels = run['labels']
 
         if knn is not None:
             used_metric = "euclidean"
             
-            for idx, centroid in enumerate(tqdm(experiment['centers'], desc="Processing cluster dirs (knn images selected)")):
+            for idx, centroid in enumerate(tqdm(run['centers'], desc="Processing cluster dirs (knn images selected)")):
                 # Filter points based on label mask over embeddings
-                cluster_points = experiment['embeddings'].values[labels == idx]
+                cluster_points = run['embeddings'].values[labels == idx]
                 cluster_images = [images[i] for i in range(len(images)) if labels[i] == idx]
                 # Adjust neighbors, just in case
                 n_neighbors_cluster = min(knn, len(cluster_points))
@@ -353,23 +375,21 @@ class ExperimentResultController():
 
 
 
-    def get_cluster_exp_path(self, experiment):
-        return os.path.join(self.cluster_dir, f"experiment_{experiment['id']}/index_{experiment['original_index']}_{self.eval_method}_{experiment['score_w/o_penalty']:.3f}")
+    def get_cluster_run_path(self, run):
+        return os.path.join(self.cluster_dir, f"{self.experiment_name}/run_{run['original_index']}_{self.eval_method}_{run['score_wo_penalty']:.3f}")
 
 
 
 
-
-
-    def create_cluster_dirs(self, images, experiment, knn=None):
+    def create_cluster_dirs(self, images, run):
         """
         Create a dir for every cluster given in dictionary of images. 
         This is how we are gonna send that folder to ugr gpus
         """
         # logger.info("Copying images from Data path to cluster dirs")
         # For every key (cluster index)
-        images_dict_format = self.get_cluster_images_dict(images, experiment)
-        path_cluster = os.path.join(self.get_cluster_exp_path(experiment), "clusters")
+        images_dict_format = self.get_cluster_images_dict(images, run)
+        path_cluster = os.path.join(self.get_cluster_run_path(run), "clusters")
         try:
             for k,v in images_dict_format.items():
                 # Create folder if it doesnt exists
@@ -397,20 +417,19 @@ class ExperimentResultController():
 
 
 
-    def plot_all(self, experiment):
+    def create_plots(self, run):
         
         if "silhouette" in self.eval_method:
-            self.show_best_silhouette(experiment)
-            self.show_best_scatter(experiment)
-            self.show_best_scatter(experiment, keep_original_embeddings = False)
-            self.show_best_scatter_with_centers(experiment)
-            self.show_best_clusters_counters_comparision(experiment)
-            #self.show_best_experiments_silhouette(experiment)
+            self.show_best_silhouette(run)
+            self.show_best_scatter(run)
+            self.show_best_scatter(run, keep_original_embeddings = False)
+            self.show_best_scatter_with_centers(run)
+            self.show_best_clusters_counters_comparision(run)
         elif "davies" in self.eval_method:
-            self.show_best_scatter(experiment)
-            self.show_best_scatter(experiment, keep_original_embeddings = False)
-            self.show_best_scatter_with_centers(experiment)
-            self.show_best_clusters_counters_comparision(experiment)
+            self.show_best_scatter(run)
+            self.show_best_scatter(run, keep_original_embeddings = False)
+            self.show_best_scatter_with_centers(run)
+            self.show_best_clusters_counters_comparision(run)
         else:
             raise ValueError("Eval Method not support for plotting")
 
@@ -418,24 +437,24 @@ class ExperimentResultController():
 
 
 
-    def show_best_silhouette(self, experiment):
+    def show_best_silhouette(self, run):
         """
         Displays the top `top_n` clusters with the highest silhouette average and the 
         `top_n` clusters with the lowest silhouette average, only if the total cluster 
         count exceeds `min_clusters`. If there are `min_clusters` or fewer clusters, 
         it displays all clusters without filtering.
         """
-        # Extract information from the experiment
-        best_experiment = experiment
-        best_id = best_experiment['id']
-        best_labels = best_experiment['labels']
-        clustering = best_experiment['clustering']
-        dim_red = best_experiment['dim_red']
-        dimensions = best_experiment['dimensions']
-        params = best_experiment['best_params']
-        optimizer = best_experiment['optimization']
-        original_score = best_experiment['score_w/o_penalty']
-        embeddings_used = best_experiment['embeddings']
+        # Extract information from the run
+        best_run = run
+        best_id = best_run['id']
+        best_labels = best_run['labels']
+        clustering = best_run['clustering']
+        dim_red = best_run['dim_red']
+        dimensions = best_run['dimensions']
+        params = best_run['best_params']
+        optimizer = best_run['optimization']
+        original_score = best_run['score_wo_penalty']
+        embeddings_used = best_run['embeddings']
 
 
         min_clusters = self.n_cluster_range[0]
@@ -527,7 +546,7 @@ class ExperimentResultController():
 
         # Save and optionally show the plot
         file_suffix = "best_silhouette"
-        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
+        file_path = os.path.join(self.get_cluster_run_path(best_run),f"{file_suffix}.png")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         plt.savefig(file_path, bbox_inches="tight")
 
@@ -539,26 +558,26 @@ class ExperimentResultController():
 
 
 
-    def show_best_scatter(self, experiment, keep_original_embeddings=True):
+    def show_best_scatter(self, run, keep_original_embeddings=True):
         """
-        Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
+        Plots a 2D scatter plot for the best run configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
 
-        best_experiment = experiment
-        best_id = best_experiment['id']
-        best_index = best_experiment['original_index']
-        best_labels = np.array(best_experiment['labels'])
-        optimizer = best_experiment['optimization']
-        clustering = best_experiment['clustering']
-        eval_method = best_experiment['eval_method']
-        scaler = best_experiment['scaler']
-        dim_red = best_experiment['dim_red']
-        dimensions = best_experiment['dimensions']
-        params = best_experiment['best_params']
-        embeddings = best_experiment['embeddings']
-        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
+        best_run = run
+        best_id = best_run['id']
+        best_index = best_run['original_index']
+        best_labels = np.array(best_run['labels'])
+        optimizer = best_run['optimization']
+        clustering = best_run['clustering']
+        eval_method = best_run['eval_method']
+        scaler = best_run['scaler']
+        dim_red = best_run['dim_red']
+        dimensions = best_run['dimensions']
+        params = best_run['best_params']
+        embeddings = best_run['embeddings']
+        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Get original embeddings (avoind reduction over reduction embeddings)
@@ -614,38 +633,36 @@ class ExperimentResultController():
 
         # Save and show plot
         file_suffix = "best_scatter_original_embeddings" if keep_original_embeddings else "best_scatter_reduced_embeddings"
-        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
+        file_path = os.path.join(self.get_cluster_run_path(best_run),f"{file_suffix}.png")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         plt.savefig(file_path, bbox_inches='tight')
-        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
+        logger.info(f"Scatter plot generated for the selected run saved to {file_path}.")
 
 
 
 
-    def show_best_scatter_with_centers(self, experiment):
+    def show_best_scatter_with_centers(self, run):
         """
-        Plots a 2D scatter plot for the best experiment configuration, with clusters reduced 
+        Plots a 2D scatter plot for the best run configuration, with clusters reduced 
         to 2D space using PCA and color-coded for better visual distinction. Points labeled 
         as noise (-1) are always shown in red.
         """
-        
-        # Get the experiment data based on the specified `experiment` type
-        best_experiment = experiment
+        best_run = run
 
-        best_labels = np.array(best_experiment['labels'])
-        best_id = best_experiment['id']
-        eval_method = best_experiment['eval_method']
-        best_index = best_experiment['original_index']
-        best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
-        best_labels = best_experiment['labels']
-        clustering = best_experiment['clustering']
-        scaler = best_experiment['scaler']
-        dim_red = best_experiment['dim_red']
-        dimensions = best_experiment['dimensions']
-        params = best_experiment['best_params']
-        optimizer = best_experiment['optimization']
-        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
-        embeddings_used = best_experiment['embeddings']
+        best_labels = np.array(best_run['labels'])
+        best_id = best_run['id']
+        eval_method = best_run['eval_method']
+        best_index = best_run['original_index']
+        best_centers = best_run['centers'].values if isinstance(best_run['centers'], pd.DataFrame) else np.array(best_run['centers'])
+        best_labels = best_run['labels']
+        clustering = best_run['clustering']
+        scaler = best_run['scaler']
+        dim_red = best_run['dim_red']
+        dimensions = best_run['dimensions']
+        params = best_run['best_params']
+        optimizer = best_run['optimization']
+        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
+        embeddings_used = best_run['embeddings']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Get data reduced from eda object
@@ -709,44 +726,43 @@ class ExperimentResultController():
 
         # Save and show plot
         file_suffix = "best_scatter_with_centers_reduced"
-        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
+        file_path = os.path.join(self.get_cluster_run_path(best_run),f"{file_suffix}.png")
         plt.savefig(file_path, bbox_inches='tight')
 
-        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
+        logger.info(f"Scatter plot generated for the selected run saved to {file_path}.")
 
 
 
 
-    def show_best_clusters_counters_comparision(self,  experiment):
+    def show_best_clusters_counters_comparision(self,  run):
         """
         Displays a bar chart comparing the number of points in each cluster for the best configuration.
         
         The method retrieves the cluster sizes (number of points per cluster) from `label_counter`
-        for the best experiment configuration and displays a bar chart to compare cluster sizes.
+        for the best run configuration and displays a bar chart to compare cluster sizes.
 
         Parameters
         ----------
         show_plots : bool, optional
             If True, displays the plot. Default is False.
         """
-         # Get the experiment data based on the specified `experiment` type
-        best_experiment = experiment
+        best_run = run
 
-        best_labels = np.array(best_experiment['labels'])
-        best_id = best_experiment['id']
-        best_index = best_experiment['original_index']
-        best_centers = best_experiment['centers'].values if isinstance(best_experiment['centers'], pd.DataFrame) else np.array(best_experiment['centers'])
-        best_labels = best_experiment['labels']
-        clustering = best_experiment['clustering']
-        scaler = best_experiment['scaler']
-        dim_red = best_experiment['dim_red']
-        eval_method = best_experiment['eval_method']
-        dimensions = best_experiment['dimensions']
-        params = best_experiment['best_params']
-        optimizer = best_experiment['optimization']
-        embeddings_used = best_experiment['embeddings']
-        score = best_experiment['score_w/o_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_experiment['score_w_penalty']
-        label_counter = best_experiment['label_counter']
+        best_labels = np.array(best_run['labels'])
+        best_id = best_run['id']
+        best_index = best_run['original_index']
+        best_centers = best_run['centers'].values if isinstance(best_run['centers'], pd.DataFrame) else np.array(best_run['centers'])
+        best_labels = best_run['labels']
+        clustering = best_run['clustering']
+        scaler = best_run['scaler']
+        dim_red = best_run['dim_red']
+        eval_method = best_run['eval_method']
+        dimensions = best_run['dimensions']
+        params = best_run['best_params']
+        optimizer = best_run['optimization']
+        embeddings_used = best_run['embeddings']
+        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
+        label_counter = best_run['label_counter']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
         
         label_counter_filtered = {k: v for k, v in label_counter.items() if k != -1}
@@ -774,10 +790,10 @@ class ExperimentResultController():
         
         # Save the plot with a name based on the `experiment` type
         file_suffix = "clusters_counter_comparison"
-        file_path = os.path.join(self.get_cluster_exp_path(experiment),f"{file_suffix}.png")
+        file_path = os.path.join(self.get_cluster_run_path(best_run),f"{file_suffix}.png")
         plt.savefig(file_path, bbox_inches='tight')
 
-        logger.info(f"Scatter plot generated for the selected experiment saved to {file_path}.")
+        logger.info(f"Scatter plot generated for the selected run saved to {file_path}.")
 
 
 
@@ -801,5 +817,6 @@ if __name__ == "__main__":
                                                            experiment_name="1_test_small_umap_silhouette", 
                                                            n_cluster_range=n_cluster_range,
                                                            reduction_params=reduction_params)
+    print(experiment_controller.results_df.info())
     print(experiment_controller.get_top_k_experiments(top_k=5))
     

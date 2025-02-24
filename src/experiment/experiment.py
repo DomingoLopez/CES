@@ -318,7 +318,7 @@ class Experiment():
                 mlflow.log_param("penalty", self._penalty)
                 mlflow.log_param("penalty_range", self._penalty_range)
                 mlflow.log_metric("score_w_penalty", study.best_value)
-                mlflow.log_metric("score_w/o_penalty", score_best)
+                mlflow.log_metric("score_wo_penalty", score_best)
                 logger.info("EXPERIMENT ENDED.")
 
 
