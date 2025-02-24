@@ -110,8 +110,6 @@ class LlavaInference():
         self.__run_llava() if self.model == "llava1-5_7b" else self.__run_llava_next()
 
     
-
-    # TODO: TAKE IMAGES AND INFERENCE THEM
     def __run_llava(self):
         """
         Run Llava inference for every image in each subfolder of the base path.
@@ -163,7 +161,6 @@ class LlavaInference():
 
 
 
-    # TODO: TAKE IMAGES FROM DATA, AND INFERENCE THEM
     def __run_llava_next(self):
         """
         Run Llava-Next inference for every image in each subfolder of the base path.
@@ -248,19 +245,4 @@ class LlavaInference():
 
 
 if __name__ == "__main__":
-
-    # Load images
-    data_path = "data/test"
-    bbdd = "test"
-
-    url = Path(__file__).resolve().parent.parent.parent / data_path
-    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
-    # Find all image files recursively and filter by extension (lowercase only)
-    image_paths = [img_path for img_path in url.rglob('*') if img_path.suffix.lower() in image_extensions]
-    # Convert to lowercase and remove duplicates (especially relevant for Windows)
-    unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
-    images =  list(unique_image_paths.values())
-
-    # Execute llava inference
-    llava = LlavaInference(images,bbdd,3,2,"llava1-6_7b",False,False)
-    llava.run()
+    pass
