@@ -62,6 +62,7 @@ def run_experiments(file, images, bbdd) -> None:
         embeddings = generate_embeddings(images, model=dino_model)
         experiment = Experiment(
             id,
+            experiment_name,
             bbdd,
             dino_model,
             embeddings,
@@ -80,15 +81,17 @@ def run_experiments(file, images, bbdd) -> None:
         experiment.run_experiment()
 
         # Generate artifacts and results for every experiment. 
-        experiment_controller = ExperimentResultController(eval_method, 
-                                                            len(images),
-                                                            dino_model,
-                                                            dim_red,
+        experiment_controller = ExperimentResultController(eval_method=eval_method, 
+                                                            n_images=len(images),
+                                                            dino_model=dino_model,
+                                                            dim_red=dim_red,
+                                                            reduction_params=None,
+                                                            n_cluster_range=None,
                                                             experiment_name=experiment_name)
-        runs_filtered = experiment_controller.get_top_k_runs(top_k=5)
-        best_run = experiment_controller.get_best_run_data(runs_filtered)
-        experiment_controller.create_cluster_dirs(images=images, run=best_run, knn=None)
-        experiment_controller.create_plots(best_run)
+        best_run = experiment_controller.get_top_k_runs(top_k=1)
+
+        experiment_controller.create_cluster_dirs(images=images, runs=best_run, knn=None, copy_images=True )
+        experiment_controller.create_plots(runs=best_run)
 
 
 if __name__ == "__main__": 
@@ -105,29 +108,29 @@ if __name__ == "__main__":
 
     images = load_images(image_path)    
     run_experiments(experiments_file, images, bbdd)
-    # Classification level to analyze
-    classification_lvl = [3]
-    #prompts = [1,2]
-    prompts = [3]
-    n_lvlm_categories = 2
-    #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
-    llava_models = ["llava1-6_7b"]
+    # # Classification level to analyze
+    # classification_lvl = [3]
+    # #prompts = [1,2]
+    # prompts = [3]
+    # n_lvlm_categories = 2
+    # #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
+    # llava_models = ["llava1-6_7b"]
 
 
 
-    # Obtain experiments config
-    with open(experiments_file, 'r') as f:
-        experiments_config = json.load(f)
+    # # Obtain experiments config
+    # with open(experiments_file, 'r') as f:
+    #     experiments_config = json.load(f)
 
-    result_list = []
-    result_list_top_trials = []
+    # result_list = []
+    # result_list_top_trials = []
 
-    for config in experiments_config:
-        eval_method = config.get("eval_method", "silhouette")
-        id = config.get("id",1)
-        dino_model = config.get("dino_model")
-        dim_red = config.get("dim_red","umap")
-        experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
+    # for config in experiments_config:
+    #     eval_method = config.get("eval_method", "silhouette")
+    #     id = config.get("id",1)
+    #     dino_model = config.get("dino_model")
+    #     dim_red = config.get("dim_red","umap")
+    #     experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
 
 
         

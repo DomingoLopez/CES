@@ -1,5 +1,6 @@
 from collections import Counter
 from itertools import product
+import json
 import os
 from pathlib import Path
 import pickle
@@ -37,6 +38,7 @@ class Experiment():
 
     def __init__(self, 
                  id:int = 0,
+                 experiment_name = "test",
                  bbdd:str = "test",
                  dino_model = "small",
                  data:pd.DataFrame = None, 
@@ -73,6 +75,7 @@ class Experiment():
         """
         # Setup attrs
         self._id = id
+        self._experiment_name = experiment_name
         self._bbdd = bbdd
         self._dino_model = dino_model
         self._data = data
@@ -108,6 +111,15 @@ class Experiment():
     @id.setter
     def id(self, value):
         self._id = value
+
+
+    @property
+    def experiment_name(self):
+        return self._experiment_name
+
+    @experiment_name.setter
+    def experiment_name(self, value):
+        self._experiment_name = value
 
     
     @property
@@ -240,7 +252,7 @@ class Experiment():
         Raises:
             ValueError: If the optimizer specified is not supported.
         """
-        logger.info(f"STARTING EXPERIMENT USING {self._optimizer.upper()} OPTIMIZER")
+        logger.info(f"STARTING EXPERIMENT {self._experiment_name} USING {self._optimizer.upper()} OPTIMIZER")
         if self._optimizer == "optuna":
             self.__run_experiment()
         else:
@@ -305,15 +317,32 @@ class Experiment():
                 mlflow.log_param("normalization", self._normalization)
                 mlflow.log_param("scaler", self._scaler)
                 mlflow.log_param("dim_red", self._dim_red)
-                mlflow.log_param("reduction_params", reduction_params)
+
+                mlflow.log_dict(reduction_params, "reduction_params.json")
+
                 mlflow.log_param("dimensions", reduction_params.get("n_components", None))
-                mlflow.log_param("embeddings", embeddings)
+
+                with open("embeddings.pkl", "wb") as f:
+                    pickle.dump(embeddings, f)
+                mlflow.log_artifact("embeddings.pkl")
+
                 mlflow.log_param("n_clusters", n_clusters_best)
-                mlflow.log_param("best_params", str(study.best_params))
-                mlflow.log_param("centers", centers_best)
-                mlflow.log_param("labels", labels_best)
-                mlflow.log_param("label_counter", label_counter)
-                mlflow.log_param("noise_not_noise", noise_not_noise)
+
+                mlflow.log_dict(study.best_params, "best_params.json")
+
+                with open("centers.pkl", "wb") as f:
+                    pickle.dump(centers_best, f)
+                mlflow.log_artifact("centers.pkl")
+
+                with open("labels.pkl", "wb") as f:
+                    pickle.dump(labels_best, f)
+                mlflow.log_artifact("labels.pkl")
+
+                label_counter_converted = {int(key): value for key, value in label_counter.items()}
+                mlflow.log_dict(label_counter_converted, "label_counter.json")
+
+                mlflow.log_dict(noise_not_noise, "noise_not_noise.json")
+
                 mlflow.log_param("score_noise_ratio", score_noise_ratio)
                 mlflow.log_param("penalty", self._penalty)
                 mlflow.log_param("penalty_range", self._penalty_range)

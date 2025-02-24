@@ -1,13 +1,16 @@
 from collections import Counter
 from itertools import product
+import json
 import os
+import ast
 from pathlib import Path
 import pickle
 import shutil
 import sys
 from matplotlib.colors import ListedColormap
 import mlflow
-from mlflow.entities import ViewType
+import mlflow.entities
+import mlflow.tracking
 import seaborn as sns
 from typing import NewType, Optional
 from matplotlib import pyplot as plt
@@ -36,6 +39,8 @@ class ExperimentResultController():
                  dino_model="small",
                  dim_red="umap",
                  experiment_name="1",
+                 n_cluster_range = None,
+                 reduction_params = None,
                  cache= True, 
                  verbose= False,
                  **kwargs):
@@ -49,23 +54,27 @@ class ExperimentResultController():
         self.verbose = verbose
         
         # Filters for different configurations
-        self.n_cluster_range  = (100,500) 
-        if dim_red == "umap":
-            self.reduction_params = {
-                "n_components": (2,25),
-                "n_neighbors": (3,60),
-                "min_dist": (0.1, 0.8)
-            }
-        elif dim_red == "tsne":
-            self.reduction_params = {
-                "n_components": (2,25),
-                "perplexity": (4,60),
-                "early_exaggeration": (7, 16)
-            }
+        self.n_cluster_range  = (100,500) if n_cluster_range is None else n_cluster_range
+        if reduction_params is None:
+            if dim_red == "umap":
+                self.reduction_params = {
+                    "n_components": (2,25),
+                    "n_neighbors": (3,60),
+                    "min_dist": (0.1, 0.8)
+                }
+            elif dim_red == "tsne":
+                self.reduction_params = {
+                    "n_components": (2,25),
+                    "perplexity": (4,60),
+                    "early_exaggeration": (7, 16)
+                }
+            else:
+                self.reduction_params = {
+                    "n_components": (2,25)
+                }
         else:
-            self.reduction_params = {
-                "n_components": (2,25)
-            }
+            self.reduction_params = reduction_params
+
 
         logger.remove()
         if verbose:
@@ -80,10 +89,10 @@ class ExperimentResultController():
         )
         self.cluster_dir.mkdir(parents=True, exist_ok=True)
 
-        # Load all runs for given experiment
-        self.results_df = None
-        self.cluster_images_dict = None
-        self.__load_all_runs(self.experiment_name)
+        # # Load all runs for given experiment
+        # self.results_df = None
+        # self.cluster_images_dict = None
+        # self.__load_all_runs()
 
         # Get original embeddings (Just for representation)
         # This is a bit messy. Refactor asap.
@@ -95,120 +104,13 @@ class ExperimentResultController():
         with open(original_embeddings_path, "rb") as f:
             self.original_embeddings = pickle.load(f)
         
-
-    def __load_all_runs(self):
-        """
-        Loads all MLflow runs for the specified experiment by name.
-        """
-        try:
-            # 1) Get the experiment_id from its name
-            if self.experiment_name:
-                experiment = mlflow.get_experiment_by_name(self.experiment_name)
-                if experiment is None:
-                    raise ValueError(f"Experiment '{self.experiment_name}' was not found in MLflow.")
-                experiment_ids = [experiment.experiment_id]
-            else:
-                raise ValueError("No experiment_name was provided.")
-
-            # 2) Retrieve MLflow runs (finished ones, for instance)
-            runs_df = mlflow.search_runs(
-                experiment_ids=experiment_ids,
-                run_view_type=ViewType.ALL,  # Include all runs, not only active ones
-                filter_string='attribute.status = "FINISHED"'  # Only include finished runs
-            )
-
-            if runs_df.empty:
-                self.results_df = pd.DataFrame()
-                logger.warning("No experiments found with the specified criteria.")
-                return
-
-            # 3) Reset index and rename columns if necessary
-            runs_df = runs_df.reset_index().rename(columns={"index": "original_index"})
-
-            # 4) Build a new DataFrame with your desired columns and order
-            #    Here is the mapping from MLflow param/metric columns to final names:
-            column_mapping = {
-                "params.id":                "id",
-                "params.bbdd":              "bbdd",
-                "params.clustering":        "clustering",
-                "params.eval_method":       "eval_method",
-                "params.optimizer":         "optimization",
-                "params.optuna_trials":     "optuna_trials",
-                "params.normalization":     "normalization",
-                "params.scaler":            "scaler",
-                "params.dim_red":           "dim_red",
-                "params.reduction_params":  "reduction_params",
-                "params.dimensions":        "dimensions",
-                "params.embeddings":        "embeddings",
-                "params.n_clusters":        "n_clusters",
-                "params.best_params":       "best_params",
-                "params.centers":           "centers",
-                "params.labels":            "labels",
-                "params.label_counter":     "label_counter",
-                "params.noise_not_noise":   "noise_not_noise",
-                "params.score_noise_ratio": "score_noise_ratio",
-                "params.penalty":           "penalty",
-                "params.penalty_range":     "penalty_range",
-                "metrics.score_w_penalty":  "score_w_penalty",
-                "metrics.score_wo_penalty":"score_wo_penalty",
-            }
-
-            # Desired final order of columns in the DataFrame
-            final_order = [
-                "id", "bbdd", "clustering", "eval_method", "optimization", "optuna_trials",
-                "normalization", "scaler", "dim_red", "reduction_params", "dimensions",
-                "embeddings", "n_clusters", "best_params", "centers", "labels",
-                "label_counter", "noise_not_noise", "score_noise_ratio", "penalty",
-                "penalty_range", "score_w_penalty", "score_wo_penalty"
-            ]
-
-            # Create a new DataFrame with the desired columns
-            transformed_df = pd.DataFrame()
-
-            for old_col, new_col in column_mapping.items():
-                if old_col in runs_df.columns:
-                    transformed_df[new_col] = runs_df[old_col]
-                else:
-                    # If the old_col doesn't exist in runs_df, fill with NaN
-                    transformed_df[new_col] = pd.Series([None] * len(runs_df))
-            
-            # Reorder columns according to final_order
-            transformed_df = transformed_df[final_order]
-
-            # Transforms columsn
-            transformed_df["optuna_trials"] = pd.to_numeric(transformed_df["optuna_trials"], errors='coerce')
-            transformed_df["dimensions"] = pd.to_numeric(transformed_df["dimensions"], errors='coerce')
-            transformed_df["n_clusters"] = pd.to_numeric(transformed_df["n_clusters"], errors='coerce')
-            transformed_df["score_w_penalty"] = pd.to_numeric(transformed_df["score_w_penalty"], errors='coerce')
-            transformed_df["score_wo_penalty"] = pd.to_numeric(transformed_df["score_wo_penalty"], errors='coerce')
-
-            # 5) Assign to self.results_df
-            self.results_df = transformed_df
-            logger.info(f"Loaded {len(runs_df)} runs from MLflow for experiment_ids={experiment_ids}. "
-                        f"Returning {len(self.results_df)} rows with the specified columns.")
-
-            # 5) Assign to self.results_df
-            self.results_df = transformed_df
-            logger.info(f"Loaded {len(runs_df)} runs from MLflow for experiment_ids={experiment_ids}. "
-                        f"Returning {len(self.results_df)} rows with the specified columns.")
-
-        except Exception as e:
-            # In case of any error, leave an empty DataFrame and log a warning
-            logger.warning(f"Could not load runs from MLflow for experiment_name='{self.experiment_name}': {e}")
-            self.results_df = pd.DataFrame()
+        # Para descargar artefactos desde mlflow
+        self.mlflowclient = mlflow.tracking.MlflowClient()
 
 
-    def get_top_k_runs(self, top_k: int) -> pd.DataFrame:
-        """
-        Returns the top_k runs based on the specified criteria.
 
-        Parameters:
-            top_k (int): Number of top runs to return.
-
-        Returns:
-            pd.DataFrame: Filtered DataFrame with the top_k runs.
-        """
-        
+    def apply_filters_and_obtain_top_k_best(self, df, top_k=1):
+ 
         # Validate n_cluster_range
         min_n_cluster, max_n_cluster = self.n_cluster_range
         if min_n_cluster < 2 or max_n_cluster > 800:
@@ -225,32 +127,32 @@ class ExperimentResultController():
     
         
         # Verify df is loaded
-        if self.results_df.shape[0] == 0 or self.results_df is None:
+        if df.shape[0] == 0 or df is None:
             logger.warning("No runs loaded. Returning an empty DataFrame.")
             return pd.DataFrame()
 
 
         # Determine sorting column and order based on eval_method
         if self.eval_method == "davies_bouldin":
-            sort_column =  'score_wo_penalty'
+            sort_column =  'metrics.score_wo_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
         elif self.eval_method == "davies_noise":
-            sort_column = 'score_w_penalty'
+            sort_column = 'metrics.score_w_penalty'
             ascending_order = True  # Lower is better for davies_bouldin
         elif self.eval_method == "silhouette":
-            sort_column =  'score_wo_penalty'
+            sort_column =  'metrics.score_wo_penalty'
             ascending_order = False  # Higher is better for silhouette
         elif self.eval_method == "silhouette_noise":
-            sort_column =  'score_w_penalty'
+            sort_column =  'metrics.score_w_penalty'
             ascending_order = False  # Higher is better for silhouette
         else:
             raise ValueError("Eval method not supported")
 
 
         # Filter dataframe based on cluster
-        filtered_df = self.results_df[
-            (self.results_df['n_clusters'] >= min_n_cluster) & 
-            (self.results_df['n_clusters'] <= max_n_cluster) 
+        filtered_df = df[
+            (df['params.n_clusters'] >= min_n_cluster) & 
+            (df['params.n_clusters'] <= max_n_cluster) 
         ]
 
         # Check if df empty and filter based on reduction params
@@ -259,7 +161,7 @@ class ExperimentResultController():
             for param, value_range in self.reduction_params.items():
                 min_val, max_val = value_range
                 filtered_df = filtered_df[
-                    filtered_df['reduction_params'].apply(
+                    filtered_df['artifacts.reduction_params'].apply(
                         lambda params: param in params and min_val <= params[param] <= max_val
                     )
                 ]
@@ -272,9 +174,10 @@ class ExperimentResultController():
         else:
             logger.warning("Filtered DataFrame is empty. Skipping sorting step.")
 
+
         if filtered_df.empty:
             logger.warning("Filtered DataFrame is empty after applying filters. Returning top_k runs from the entire dataset.")
-            filtered_df = self.results_df.sort_values(by=sort_column, ascending=ascending_order)
+            filtered_df = df.sort_values(by=sort_column, ascending=ascending_order)
 
         # Select the top_k runs
         top_k_df = filtered_df.head(top_k)
@@ -282,43 +185,128 @@ class ExperimentResultController():
         return top_k_df
 
 
-    def get_best_run_data(self, filtered_df):
+
+
+    def add_artifacts_data(self, df):
         """
-        Helper function to get the best run based on `experiment_type`.
+        Helper function to add artifact data to a DataFrame.
 
         Parameters
         ----------
-        filtered_df : DataFrame
-            "best" for best silhouette or "silhouette_noise_ratio" for best silhouette-to-noise ratio.
+        df : DataFrame
+            The DataFrame containing MLflow runs.
 
         Returns
         -------
-        pd.Series
-            The row in the DataFrame corresponding to the best experiment.
-        """
-        # First of all, filter those with cluster number less than 10 for example
-        # This should be an input parameter 
+        pd.DataFrame
+            The DataFrame with artifacts added as new columns.
+        """ 
         
-        if filtered_df.empty:
-            raise ValueError("No experiments found.")
+        # Inicializar listas para los artifacts
+        best_params_list = []
+        centers_list = []
+        labels_list = []
+        embeddings_list = []
+        label_counter_list = []
+        noise_not_noise_list = []
+        reduction_params_list = []
 
+        for _, row in df.iterrows():  # Iterar sobre cada fila del DataFrame
+            run_id = row["run_id"]  # Obtener el run_id de la fila actual
 
-        # Determine sorting column and order based on eval_method
-        if self.eval_method == "davies_bouldin":
-            df = filtered_df.loc[filtered_df["score_wo_penalty"].idxmin()]
-        elif self.eval_method == "davies_noise":
-            df = filtered_df.loc[filtered_df["score_w_penalty"].idxmin()]
-        elif self.eval_method == "silhouette":
-            df = filtered_df.loc[filtered_df["score_wo_penalty"].idxmax()]
-        elif self.eval_method == "silhouette_noise":
-            df = filtered_df.loc[filtered_df["score_w_penalty"].idxmax()]
-        else:
-            raise ValueError("Eval method not supported")
+            try:
+                # Descargar artifacts
+                localpath_best_params = self.mlflowclient.download_artifacts(run_id, "best_params.json")
+                localpath_labels = self.mlflowclient.download_artifacts(run_id, "labels.pkl")
+                localpath_centers = self.mlflowclient.download_artifacts(run_id, "centers.pkl")
+                localpath_embeddings = self.mlflowclient.download_artifacts(run_id, "embeddings.pkl")
+                localpath_label_counter = self.mlflowclient.download_artifacts(run_id, "label_counter.json")
+                localpath_noise_not_noise = self.mlflowclient.download_artifacts(run_id, "noise_not_noise.json")
+                localpath_reduction_params = self.mlflowclient.download_artifacts(run_id, "reduction_params.json")
 
-        logger.info(f"selected run with score: {df['score_wo_penalty']:.3f}")
-            
+                # Cargar archivos JSON
+                with open(localpath_best_params, "r") as f:
+                    best_params = json.load(f)
+                with open(localpath_label_counter, "r") as f:
+                    label_counter = json.load(f)
+                with open(localpath_noise_not_noise, "r") as f:
+                    noise_not_noise = json.load(f)
+                with open(localpath_reduction_params, "r") as f:
+                    reduction_params = json.load(f)
+
+                # Cargar archivos Pickle
+                with open(localpath_centers, "rb") as f:
+                    centers = pickle.load(f)
+                with open(localpath_embeddings, "rb") as f:
+                    embeddings = pickle.load(f)
+                with open(localpath_labels, "rb") as f:
+                    labels = pickle.load(f)
+
+            except Exception as e:
+                logger.warning(f"Could not load artifacts for run_id={run_id}: {e}")
+                best_params = None
+                labels = None
+                centers = None
+                embeddings = None
+                label_counter = None
+                noise_not_noise = None
+                reduction_params = None
+
+            # Agregar artifacts a las listas
+            best_params_list.append(best_params)
+            centers_list.append(centers)
+            labels_list.append(labels)
+            embeddings_list.append(embeddings)
+            label_counter_list.append(label_counter)
+            noise_not_noise_list.append(noise_not_noise)
+            reduction_params_list.append(reduction_params)
+
+        # Agregar las nuevas columnas al DataFrame
+        df["artifacts.best_params"] = best_params_list
+        df["artifacts.labels"] = labels_list
+        df["artifacts.label_counter"] = label_counter_list
+        df["artifacts.noise_not_noise"] = noise_not_noise_list
+        df["artifacts.reduction_params"] = reduction_params_list
+        df["artifacts.centers"] = centers_list
+        df["artifacts.embeddings"] = embeddings_list
+
         return df
 
+
+
+    def get_top_k_runs(self,top_k):
+
+        try:
+            # 1) Get the experiment_id from its name
+            if self.experiment_name:
+                experiment = mlflow.get_experiment_by_name(self.experiment_name)
+                if experiment is None:
+                    raise ValueError(f"Experiment '{self.experiment_name}' was not found in MLflow.")
+                experiment_ids = [experiment.experiment_id]
+            else:
+                raise ValueError("No experiment_name was provided.")
+
+
+            # 2) Retrieve MLflow runs (finished ones, for instance)
+            runs_df = mlflow.search_runs(
+                experiment_ids=experiment_ids,
+                run_view_type=mlflow.entities.ViewType.ALL,  # Include all runs, not only active ones
+                filter_string='attribute.status = "FINISHED"'  # Only include finished runs
+            )
+
+            #Transforms some columns
+            runs_df["params.dimensions"] = pd.to_numeric(runs_df['params.dimensions'], errors='coerce')
+            runs_df["params.n_clusters"] = pd.to_numeric(runs_df['params.n_clusters'], errors='coerce')
+
+
+            # Filter
+            filtered_df = self.apply_filters_and_obtain_top_k_best(runs_df,top_k = top_k)
+            df = self.add_artifacts_data(filtered_df)
+            return df
+
+        except Exception as e:
+            # In case of any error, leave an empty DataFrame and log a warning
+            logger.warning(f"Could not load runs from MLflow for experiment_name='{self.experiment_name}': {e}")
 
 
 
@@ -339,14 +327,14 @@ class ExperimentResultController():
         """
 
         cluster_images_dict = {}
-        labels = run['labels']
+        labels = run['artifacts.labels']
 
         if knn is not None:
             used_metric = "euclidean"
             
-            for idx, centroid in enumerate(tqdm(run['centers'], desc="Processing cluster dirs (knn images selected)")):
+            for idx, centroid in enumerate(tqdm(run['artifacts.centers'], desc="Processing cluster dirs (knn images selected)")):
                 # Filter points based on label mask over embeddings
-                cluster_points = run['embeddings'].values[labels == idx]
+                cluster_points = run['artifacts.embeddings'].values[labels == idx]
                 cluster_images = [images[i] for i in range(len(images)) if labels[i] == idx]
                 # Adjust neighbors, just in case
                 n_neighbors_cluster = min(knn, len(cluster_points))
@@ -376,32 +364,41 @@ class ExperimentResultController():
 
 
     def get_cluster_run_path(self, run):
-        return os.path.join(self.cluster_dir, f"{self.experiment_name}/run_{run['original_index']}_{self.eval_method}_{run['score_wo_penalty']:.3f}")
+        return os.path.join(self.cluster_dir, f"{self.experiment_name}/run_{run['run_id']}_{self.eval_method}_{run['metrics.score_wo_penalty']:.3f}")
 
 
 
 
-    def create_cluster_dirs(self, images, run):
+    def create_cluster_dirs(self, images, runs, knn=None, copy_images=True):
         """
         Create a dir for every cluster given in dictionary of images. 
         This is how we are gonna send that folder to ugr gpus
         """
         # logger.info("Copying images from Data path to cluster dirs")
         # For every key (cluster index)
-        images_dict_format = self.get_cluster_images_dict(images, run)
-        path_cluster = os.path.join(self.get_cluster_run_path(run), "clusters")
-        try:
-            for k,v in images_dict_format.items():
-                # Create folder if it doesnt exists
-                cluster_dir = os.path.join(path_cluster, str(k)) 
-                os.makedirs(cluster_dir, exist_ok=True)
-                # For every path image, copy that image from its path to cluster folder
-                for path in v:
-                    shutil.copy(path, cluster_dir)
-        except (os.error) as ex:
-            template = "An exception of type {0} occurred. Arguments:\n{1!r}"
-            message = template.format(type(ex).__name__, ex.args)
-            print(message)
+        
+        for i,r in runs.iterrows():
+            images_dict_format = self.get_cluster_images_dict(images, r)
+            path_cluster = os.path.join(self.get_cluster_run_path(r), "clusters")
+            cluster_data = []
+            try:
+                for cluster_id, image_paths in images_dict_format.items():
+                    # Create folder if it doesnt exists
+                    cluster_dir = os.path.join(path_cluster, str(cluster_id)) 
+                    os.makedirs(cluster_dir, exist_ok=True)
+                    # For every path image, copy that image from its path to cluster folder
+                    for image_path in image_paths:
+                        cluster_data.append([cluster_id, image_path])
+                        if copy_images:
+                            shutil.copy(image_path, cluster_dir)
+                #Guardar el CSV con la información de imágenes y sus clusters
+                csv_path = os.path.join(self.get_cluster_run_path(r), "cluster_images.csv")
+                df = pd.DataFrame(cluster_data, columns=["cluster", "img"])
+                df.sort_values(by="cluster").to_csv(csv_path, index=False)
+            except (os.error) as ex:
+                template = "An exception of type {0} occurred. Arguments:\n{1!r}"
+                message = template.format(type(ex).__name__, ex.args)
+                print(message)
 
 
 
@@ -417,21 +414,22 @@ class ExperimentResultController():
 
 
 
-    def create_plots(self, run):
+    def create_plots(self, runs):
         
-        if "silhouette" in self.eval_method:
-            self.show_best_silhouette(run)
-            self.show_best_scatter(run)
-            self.show_best_scatter(run, keep_original_embeddings = False)
-            self.show_best_scatter_with_centers(run)
-            self.show_best_clusters_counters_comparision(run)
-        elif "davies" in self.eval_method:
-            self.show_best_scatter(run)
-            self.show_best_scatter(run, keep_original_embeddings = False)
-            self.show_best_scatter_with_centers(run)
-            self.show_best_clusters_counters_comparision(run)
-        else:
-            raise ValueError("Eval Method not support for plotting")
+        for i, run in runs.iterrows():
+            if "silhouette" in self.eval_method:
+                self.show_best_silhouette(run)
+                self.show_best_scatter(run)
+                self.show_best_scatter(run, keep_original_embeddings = False)
+                self.show_best_scatter_with_centers(run)
+                self.show_best_clusters_counters_comparision(run)
+            elif "davies" in self.eval_method:
+                self.show_best_scatter(run)
+                self.show_best_scatter(run, keep_original_embeddings = False)
+                self.show_best_scatter_with_centers(run)
+                self.show_best_clusters_counters_comparision(run)
+            else:
+                raise ValueError("Eval Method not support for plotting")
 
 
 
@@ -446,15 +444,14 @@ class ExperimentResultController():
         """
         # Extract information from the run
         best_run = run
-        best_id = best_run['id']
-        best_labels = best_run['labels']
-        clustering = best_run['clustering']
-        dim_red = best_run['dim_red']
-        dimensions = best_run['dimensions']
-        params = best_run['best_params']
-        optimizer = best_run['optimization']
-        original_score = best_run['score_wo_penalty']
-        embeddings_used = best_run['embeddings']
+        best_id = best_run['params.id']
+        best_labels = best_run['artifacts.labels']
+        clustering = best_run['params.clustering']
+        dim_red = best_run['params.dim_red']
+        dimensions = best_run['params.dimensions']
+        optimizer = best_run['params.optimizer']
+        original_score = best_run['metrics.score_wo_penalty']
+        embeddings_used = best_run['artifacts.embeddings']
 
 
         min_clusters = self.n_cluster_range[0]
@@ -566,18 +563,15 @@ class ExperimentResultController():
         """
 
         best_run = run
-        best_id = best_run['id']
-        best_index = best_run['original_index']
-        best_labels = np.array(best_run['labels'])
-        optimizer = best_run['optimization']
-        clustering = best_run['clustering']
-        eval_method = best_run['eval_method']
-        scaler = best_run['scaler']
-        dim_red = best_run['dim_red']
-        dimensions = best_run['dimensions']
-        params = best_run['best_params']
-        embeddings = best_run['embeddings']
-        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
+        best_id = best_run['params.id']
+        best_labels = np.array(best_run['artifacts.labels'])
+        clustering = best_run['params.clustering']
+        dim_red = best_run['params.dim_red']
+        dimensions = best_run['params.dimensions']
+        optimizer = best_run['params.optimizer']
+        embeddings_used = best_run['artifacts.embeddings']
+        eval_method = best_run['params.eval_method']
+        score = best_run['metrics.score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['metrics.score_w_penalty']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Get original embeddings (avoind reduction over reduction embeddings)
@@ -585,7 +579,7 @@ class ExperimentResultController():
             data_df = pd.DataFrame(self.original_embeddings)
             data = data_df.values
         else:
-            data = embeddings.values
+            data = embeddings_used.values
 
         # Check if reduction is needed
         if data.shape[1] > 2:
@@ -649,20 +643,17 @@ class ExperimentResultController():
         """
         best_run = run
 
-        best_labels = np.array(best_run['labels'])
-        best_id = best_run['id']
-        eval_method = best_run['eval_method']
-        best_index = best_run['original_index']
-        best_centers = best_run['centers'].values if isinstance(best_run['centers'], pd.DataFrame) else np.array(best_run['centers'])
-        best_labels = best_run['labels']
-        clustering = best_run['clustering']
-        scaler = best_run['scaler']
-        dim_red = best_run['dim_red']
-        dimensions = best_run['dimensions']
-        params = best_run['best_params']
-        optimizer = best_run['optimization']
-        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
-        embeddings_used = best_run['embeddings']
+        best_labels = np.array(best_run['artifacts.labels'])
+        best_id = best_run['params.id']
+        eval_method = best_run['params.eval_method']
+        best_centers = best_run['artifacts.centers'].values if isinstance(best_run['artifacts.centers'], pd.DataFrame) else np.array(best_run['artifacts.centers'])
+        best_labels = best_run['artifacts.labels']
+        clustering = best_run['params.clustering']
+        dim_red = best_run['params.dim_red']
+        dimensions = best_run['params.dimensions']
+        optimizer = best_run['params.optimizer']
+        score = best_run['metrics.score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['metrics.score_w_penalty']
+        embeddings_used = best_run['artifacts.embeddings']
         cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
 
         # Get data reduced from eda object
@@ -748,22 +739,13 @@ class ExperimentResultController():
         """
         best_run = run
 
-        best_labels = np.array(best_run['labels'])
-        best_id = best_run['id']
-        best_index = best_run['original_index']
-        best_centers = best_run['centers'].values if isinstance(best_run['centers'], pd.DataFrame) else np.array(best_run['centers'])
-        best_labels = best_run['labels']
-        clustering = best_run['clustering']
-        scaler = best_run['scaler']
-        dim_red = best_run['dim_red']
-        eval_method = best_run['eval_method']
-        dimensions = best_run['dimensions']
-        params = best_run['best_params']
-        optimizer = best_run['optimization']
-        embeddings_used = best_run['embeddings']
-        score = best_run['score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['score_w_penalty']
-        label_counter = best_run['label_counter']
-        cluster_count = len(np.unique(best_labels)) - (1 if -1 in best_labels else 0)  # Exclude noise (-1) from cluster count
+        best_labels = np.array(best_run['artifacts.labels'])
+        best_id = best_run['params.id']
+        eval_method = best_run['params.eval_method']
+        best_labels = best_run['artifacts.labels']
+        eval_method = best_run['params.eval_method']
+        score = best_run['metrics.score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['metrics.score_w_penalty']
+        label_counter = best_run['artifacts.label_counter']
         
         label_counter_filtered = {k: v for k, v in label_counter.items() if k != -1}
 
@@ -817,6 +799,6 @@ if __name__ == "__main__":
                                                            experiment_name="1_test_small_umap_silhouette", 
                                                            n_cluster_range=n_cluster_range,
                                                            reduction_params=reduction_params)
-    print(experiment_controller.results_df.info())
-    print(experiment_controller.get_top_k_experiments(top_k=5))
-    
+    best_run = experiment_controller.get_best_run()
+    print(best_run)
+
