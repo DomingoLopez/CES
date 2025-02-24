@@ -245,4 +245,19 @@ class LlavaInference():
 
 
 if __name__ == "__main__":
-    pass
+
+    # Load images
+    data_path = "data/flikr_validated_imgs_7000"
+    bbdd = "flickr"
+
+    url = Path(__file__).resolve().parent.parent.parent / data_path
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+    # Find all image files recursively and filter by extension (lowercase only)
+    image_paths = [img_path for img_path in url.rglob('*') if img_path.suffix.lower() in image_extensions]
+    # Convert to lowercase and remove duplicates (especially relevant for Windows)
+    unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
+    images =  list(unique_image_paths.values())
+
+    # Execute llava inference
+    llava = LlavaInference(images,bbdd,3,2,"llava1-6_7b",False,False)
+    llava.run()
