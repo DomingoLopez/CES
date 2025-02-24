@@ -1,22 +1,11 @@
 from pathlib import Path
-import pickle
-import shutil
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
-from tqdm import tqdm
 from transformers import LlavaProcessor, LlavaForConditionalGeneration, LlavaNextProcessor, LlavaNextForConditionalGeneration
 import torch
 from PIL import Image
-import requests
 import time
 import os
-import sys
-import matplotlib.pyplot as plt
-from scipy.stats import entropy
 
-
-#from src.utils.image_loader import ImageLoader
-#from loguru import logger
 
 
 class LlavaInference():
@@ -26,6 +15,7 @@ class LlavaInference():
     """
     def __init__(self, 
                  images: list,
+                 bbdd: str,
                  classification_lvl: str,
                  n_prompt:int,
                  model:str,
@@ -60,7 +50,7 @@ class LlavaInference():
         self.cache = cache
         self.verbose = verbose
         # Base dirs
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/{bbdd}_{len(images)}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"inference_results.csv"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         # Ensure directories exist
@@ -89,11 +79,25 @@ class LlavaInference():
             "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
             )
         
+
+        self.prompt_3 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+            f"Your task is to classify images into TWO of the following {len(self.categories)} categories: {categories_joins}. "
+            "Please adhere to the following rules:"
+            "1. You must assign ONLY TWO categories from the list given above."
+            "2. If the image does not clearly belong to any of the listed categories, classify it as the TWO most similar categories from the list."
+            "3. DO NOT provide any explanation."
+            "4. This is an example output: PLANTS, VEGETATION AND HABITATS."
+            )
         
-        if n_prompt > 2 or n_prompt < 1:
-                raise ValueError("n_prompt must be 1 or 2")
-            
-        self.prompt = self.prompt_1 if n_prompt == 1 else self.prompt_2
+        
+        if n_prompt == 1:
+            self.prompt = self.prompt_1 
+        elif n_prompt == 2:
+            self.prompt = self.prompt_2
+        else:
+            self.prompt = self.prompt_3
+
 
 
 
@@ -221,24 +225,6 @@ class LlavaInference():
 
 
 
-
-    def get_results(self,model_name):
-        """
-        Returns inference results for given model name 
-        (on classification_lvl where it was created, and for given prompt)
-        """
-        results = None
-        try:
-            results = pd.read_csv(Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{model_name}/prompt_{self.n_prompt}/inference_results.csv",
-                                  sep=";",
-                                  header=0)
-        except:
-            ValueError("File not found")
-
-        return results
-    
-
-
     def get_categories(self, classsification_lvl):
         """
         Returns categories from classification_lvl
@@ -262,4 +248,19 @@ class LlavaInference():
 
 
 if __name__ == "__main__":
-    pass
+
+    # Load images
+    data_path = "data/test"
+    bbdd = "test"
+
+    url = Path(__file__).resolve().parent.parent.parent / data_path
+    image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
+    # Find all image files recursively and filter by extension (lowercase only)
+    image_paths = [img_path for img_path in url.rglob('*') if img_path.suffix.lower() in image_extensions]
+    # Convert to lowercase and remove duplicates (especially relevant for Windows)
+    unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
+    images =  list(unique_image_paths.values())
+
+    # Execute llava inference
+    llava = LlavaInference(images,bbdd,3,2,"llava1-6_7b",False,False)
+    llava.run()

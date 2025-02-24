@@ -88,9 +88,9 @@ def run_experiments(file, images, bbdd) -> None:
                                                             reduction_params=None,
                                                             n_cluster_range=None,
                                                             experiment_name=experiment_name)
-        best_run = experiment_controller.get_top_k_runs(top_k=1)
+        best_run = experiment_controller.get_top_k_runs(top_k=2)
 
-        experiment_controller.create_cluster_dirs(images=images, runs=best_run, knn=None, copy_images=True )
+        experiment_controller.create_cluster_dirs(images=images, runs=best_run, knn=None, copy_images=False )
         experiment_controller.create_plots(runs=best_run)
 
 
@@ -108,15 +108,13 @@ if __name__ == "__main__":
 
     images = load_images(image_path)    
     run_experiments(experiments_file, images, bbdd)
-    # # Classification level to analyze
-    # classification_lvl = [3]
-    # #prompts = [1,2]
-    # prompts = [3]
-    # n_lvlm_categories = 2
-    # #llava_models = ("llava1-6_7b", "llava1-6_13b", "llava1-5_7b")
-    # llava_models = ["llava1-6_7b"]
 
 
+    # Classification level to analyze
+    classification_lvl = [3]
+    prompts = [2]
+    n_lvlm_categories = 1
+    llava_models = ["llava1-6_7b"]
 
     # # Obtain experiments config
     # with open(experiments_file, 'r') as f:
@@ -131,10 +129,6 @@ if __name__ == "__main__":
     #     dino_model = config.get("dino_model")
     #     dim_red = config.get("dim_red","umap")
     #     experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
-
-
-        
-        
 
     #     for class_lvl in classification_lvl:
     #         for model in llava_models:
