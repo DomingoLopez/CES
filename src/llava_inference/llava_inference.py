@@ -50,7 +50,7 @@ class LlavaInference():
         self.cache = cache
         self.verbose = verbose
         # Base dirs
-        self.results_dir = Path(__file__).resolve().parent / f"results/{bbdd}_{len(images)}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/{bbdd}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"inference_results.csv"
         self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         # Ensure directories exist
@@ -222,23 +222,28 @@ class LlavaInference():
 
 
 
-    def get_categories(self, classsification_lvl):
+    def get_categories(self):
         """
         Returns categories from classification_lvl
         """
-        categories = None
+        return [cat.upper() for cat in self.categories]
+
+
+
+    def get_results(self):
+        """
+        Returns inference results for given model name 
+        (on classification_lvl where it was created, and for given prompt)
+        """
+        results = None
         try:
-            categories = pd.read_csv(Path(__file__).resolve().parent / f"classification_lvls/classification_level_{classsification_lvl}.csv",
+            results = pd.read_csv(os.path.join(self.results_csv,"/inference_results.csv"),
                                   sep=";",
-                                  header=None)
+                                  header=0)
         except:
             ValueError("File not found")
 
-        data_list = categories[0].to_list()
-        uppercase_list = [item.upper() for item in data_list]
-        return uppercase_list
-
-
+        return results
 
 
 
@@ -247,7 +252,7 @@ class LlavaInference():
 if __name__ == "__main__":
 
     # Load images
-    data_path = "data/flikr_validated_imgs_7000"
+    data_path = "data/flickr/flickr_validated_imgs_7000"
     bbdd = "flickr"
 
     url = Path(__file__).resolve().parent.parent.parent / data_path

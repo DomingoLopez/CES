@@ -300,9 +300,10 @@ class ExperimentResultController():
 
 
             # Filter
-            filtered_df = self.apply_filters_and_obtain_top_k_best(runs_df,top_k = top_k)
-            df = self.add_artifacts_data(filtered_df)
-            return df
+            df = self.add_artifacts_data(runs_df)
+            filtered_df = self.apply_filters_and_obtain_top_k_best(df,top_k = top_k)
+            
+            return filtered_df
 
         except Exception as e:
             # In case of any error, leave an empty DataFrame and log a warning
@@ -418,10 +419,10 @@ class ExperimentResultController():
         
         for i, run in runs.iterrows():
             if "silhouette" in self.eval_method:
-                self.show_best_silhouette(run)
-                self.show_best_scatter(run)
-                self.show_best_scatter(run, keep_original_embeddings = False)
-                self.show_best_scatter_with_centers(run)
+                # self.show_best_silhouette(run)
+                # self.show_best_scatter(run)
+                # self.show_best_scatter(run, keep_original_embeddings = False)
+                # self.show_best_scatter_with_centers(run)
                 self.show_best_clusters_counters_comparision(run)
             elif "davies" in self.eval_method:
                 self.show_best_scatter(run)
@@ -738,15 +739,11 @@ class ExperimentResultController():
             If True, displays the plot. Default is False.
         """
         best_run = run
-
-        best_labels = np.array(best_run['artifacts.labels'])
         best_id = best_run['params.id']
-        eval_method = best_run['params.eval_method']
-        best_labels = best_run['artifacts.labels']
         eval_method = best_run['params.eval_method']
         score = best_run['metrics.score_wo_penalty'] if eval_method in ("silhouette","davies_bouldin") else best_run['metrics.score_w_penalty']
         label_counter = best_run['artifacts.label_counter']
-        
+        label_counter = {int(k): v for k,v in label_counter.items()}
         label_counter_filtered = {k: v for k, v in label_counter.items() if k != -1}
 
         # Extract cluster indices and their respective counts from label_counter

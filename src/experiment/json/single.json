@@ -1,17 +1,17 @@
 [
     {   
-        "id": 1,
+        "id": 0,
         "dino_model": "small",
         "optimizer" : "optuna",
-        "optuna_trials": 50,
+        "optuna_trials": 200,
         "normalization": true,
         "scaler" : null,
         "dim_red" : "umap",
         "reduction_parameters": {
             "metric": ["cosine","euclidean"],
-            "n_components": [2,3],
-            "n_neighbors": [5, 10],
-            "min_dist": [0.5, 0.7]
+            "n_components": [2,3,4,5,7],
+            "n_neighbors": [5, 10, 15, 20, 50],
+            "min_dist": [0.1, 0.3, 0.5, 0.7]
         },
         "clustering" : "hdbscan",
         "eval_method" : "silhouette",
