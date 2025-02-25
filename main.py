@@ -102,35 +102,77 @@ if __name__ == "__main__":
     # bbdd = "test"
     # experiments_file = "src/experiment/json/single.json"
 
+    # 1. OBTAIN IMAGES
     image_path ="./data/flickr/flickr_validated_imgs_7000"
     bbdd = "flickr"
     #experiments_file = "src/experiment/json/experiments_optuna_all.json"
     experiments_file = "src/experiment/json/single.json"
-
     images = load_images(image_path)    
-    run_experiments(experiments_file, images, bbdd)
 
 
-    # Classification level to analyze
+    # START EXPERIMENTS
     classification_lvl = [3]
     prompts = [2]
     n_lvlm_categories = 1
     llava_models = ["llava1-6_7b"]
-
     # Obtain experiments config
     with open(experiments_file, 'r') as f:
         experiments_config = json.load(f)
-
     result_list = []
     result_list_top_trials = []
-
+    # All experiment
     for config in experiments_config:
-        eval_method = config.get("eval_method", "silhouette")
         id = config.get("id",1)
-        dino_model = config.get("dino_model")
-        dim_red = config.get("dim_red","umap")
+        dino_model = config.get("dino_model","small")
+        optimizer = config.get("optimizer", "optuna")
+        optuna_trials = config.get("optuna_trials", None)
+        normalization = config.get("normalization", True)
+        scaler = config.get("scaler", None)
+        dim_red = config.get("dim_red", "umap")
+        reduction_parameters = config.get("reduction_parameters", None)
+        clustering = config.get("clustering", "hdbscan")
+        eval_method = config.get("eval_method", "silhouette")
+        penalty = config.get("penalty", None)
+        penalty_range = config.get("penalty_range", None)
+        cache = config.get("cache", True)
         experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
+        logger.info(f"LOADING EXPERIMENT: {id}")
 
+        # 2. GENERATE EMBEDDINGS FOR EACH EXPERIMENT
+        embeddings = generate_embeddings(images, model=dino_model)
+        experiment = Experiment(
+            id,
+            experiment_name,
+            bbdd,
+            dino_model,
+            embeddings,
+            optimizer,
+            optuna_trials,
+            normalization,
+            dim_red,
+            reduction_parameters,
+            scaler,
+            clustering,
+            eval_method,
+            penalty,
+            penalty_range,
+            cache
+        )
+        # 3. APPLY CLUSTERING AND GENERATE PLOTS
+        experiment.run_experiment()
+        # Generate artifacts and results for every experiment. 
+        experiment_controller = ExperimentResultController(eval_method=eval_method, 
+                                                            n_images=len(images),
+                                                            dino_model=dino_model,
+                                                            dim_red=dim_red,
+                                                            reduction_params=None,
+                                                            n_cluster_range=None,
+                                                            experiment_name=experiment_name)
+        best_runs = experiment_controller.get_top_k_runs(top_k=1)
+        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=True )
+        experiment_controller.create_plots(runs=best_runs)
+
+        # 4. RUN LLAVA INFERENCE
         for class_lvl in classification_lvl:
             for model in llava_models:
                 for prompt in prompts:
@@ -141,21 +183,16 @@ if __name__ == "__main__":
                     # Obtain categories
                     categories = llava.get_categories()
 
-                    # for every experiment in top 5, I want to store that, so I would get best 5 results from every experiment.
-                    # Also keep storing best experiment results
-
-                    # Esto ya no lo hacemos así. 
-                    # Ahora hay que recorrer cada directorio de runs y leer el csv con la asignación de imágenes
-                    # a cluster
-
-                    for idx, row in experiments_filtered.iterrows():
-                        img_cluster_dict = experiment_controller.get_cluster_images_dict(images,row,None,False)
+                    # 5. CALCULATE QUALITY METRICS
+                    for idx, run in best_runs.iterrows():
+                        img_cluster_dict = experiment_controller.get_cluster_images_dict(images,run,None,False)
                         # Quality metrics
-                        lvm_lvlm_metric = MultiModalClusteringMetric(class_lvl,
+                        lvm_lvlm_metric = MultiModalClusteringMetric(experiment_name,
+                                                                    class_lvl,
                                                                     categories,
                                                                     model, 
                                                                     prompt, 
-                                                                    row, 
+                                                                    run, 
                                                                     img_cluster_dict, 
                                                                     llava_results_df)
                         
@@ -180,24 +217,24 @@ if __name__ == "__main__":
                         # Save results in list
                         result_list_top_trials.append({
                             "experiment_id" : id,
-                            "trial_index": row["original_index"],
+                            "run_id": run["run_id"],
                             "dino_model" : dino_model,
-                            "normalization" : row["normalization"],
-                            "scaler" : row["scaler"],
-                            "dim_red" : row["dim_red"],
-                            "reduction_parameters" : row["reduction_params"],
-                            "clustering" : row["clustering"],
-                            "n_clusters": row["n_clusters"],
-                            "best_params": row["best_params"],
-                            "penalty" : row["penalty"],
-                            "penalty_range" : row["penalty_range"],
-                            "noise_not_noise" : row["noise_not_noise"],
+                            "normalization" : run["params.normalization"],
+                            "scaler" : run["params.scaler"],
+                            "dim_red" : run["params.dim_red"],
+                            "reduction_parameters" : run["artifacts.reduction_params"],
+                            "clustering" : run["params.clustering"],
+                            "n_clusters": run["params.n_clusters"],
+                            "best_params": run["artifacts.best_params"],
+                            "penalty" : run["params.penalty"],
+                            "penalty_range" : run["params.penalty_range"],
+                            "noise_not_noise" : run["artifacts.noise_not_noise"],
                             # Important things
                             "classification_lvl": class_lvl,
                             "lvlm": model,
                             "prompt": prompt,
                             "eval_method": eval_method,
-                            "best_score": row["score_w_penalty"] if "noise" in row["eval_method"] else row["score_w/o_penalty"], 
+                            "best_score": run["metrics.score_w_penalty"] if "noise" in run["params.eval_method"] else run["metrics.score_wo_penalty"], 
                             # Metrics
                             "homogeneity_global": quality_results["homogeneity_global"].iloc[0],
                             "entropy_global": quality_results["entropy_global"].iloc[0],
@@ -208,38 +245,7 @@ if __name__ == "__main__":
                         })
 
 
-                        # Store best results only
-                        if row["original_index"] == best_experiment_index:
-                            # Save results in list
-                            result_list.append({
-                                "experiment_id" : id,
-                                "best_trial_index": best_experiment["original_index"],
-                                "dino_model" : dino_model,
-                                "normalization" : best_experiment["normalization"],
-                                "scaler" : best_experiment["scaler"],
-                                "dim_red" : best_experiment["dim_red"],
-                                "reduction_parameters" : best_experiment["reduction_params"],
-                                "clustering" : best_experiment["clustering"],
-                                "n_clusters": best_experiment["n_clusters"],
-                                "best_params": best_experiment["best_params"],
-                                "penalty" : best_experiment["penalty"],
-                                "penalty_range" : best_experiment["penalty_range"],
-                                "noise_not_noise" : best_experiment["noise_not_noise"],
-                                # Important things
-                                "classification_lvl": class_lvl,
-                                "lvlm": model,
-                                "prompt": prompt,
-                                "eval_method": eval_method,
-                                "best_score": best_experiment["score_w_penalty"] if "noise" in best_experiment["eval_method"] else best_experiment["score_w/o_penalty"], 
-                                # Metrics
-                                "homogeneity_global": quality_results["homogeneity_global"].iloc[0],
-                                "entropy_global": quality_results["entropy_global"].iloc[0],
-                                "quality_metric":quality_results["quality_metric"].iloc[0]
-                                # "homogeneity_global_w_noise": quality_results["homogeneity_global_w_noise"].iloc[0],
-                                # "entropy_global_w_noise": quality_results["entropy_global_w_noise"].iloc[0],
-                                # "quality_metric_w_noise":quality_results["quality_metric_w_noise"].iloc[0]
-                            })
-                            lvm_lvlm_metric.plot_cluster_categories_3()
+                        lvm_lvlm_metric.plot_cluster_categories_3()
 
 
     # df_results = pd.DataFrame(result_list)

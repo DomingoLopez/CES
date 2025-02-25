@@ -24,11 +24,12 @@ class MultiModalClusteringMetric():
     Dinov2 clustering and Llava inference comparision
     """
     def __init__(self, 
+                 experiment_name: str,
                  classification_lvl: int,
                  categories: list,
                  model:str,
                  n_prompt:int,
-                 experiment: pd.DataFrame,
+                 run: pd.DataFrame,
                  images_cluster_dict: dict,
                  llava_results_df: pd.DataFrame,
                  cache: bool = True, 
@@ -38,13 +39,17 @@ class MultiModalClusteringMetric():
 
         """
 
+        self.experiment_name = experiment_name
         self.classification_lvl = classification_lvl
         self.categories = sorted(categories)
         self.model = model
         self.n_prompt = n_prompt
-        self.experiment = experiment
+        self.run = run
         self.images_cluster_dict = images_cluster_dict
         self.llava_results_df= llava_results_df
+        # Ajuste de las categorías que no están, porque el modelo las pone mal.
+        self.llava_results_df["category_llava"] = llava_results_df["category_llava"] if llava_results_df["category_llava"] in self.categories \
+                                                                                    else "BAD_INFERENCE"
         self.cache = cache
         self.verbose = verbose
 
@@ -86,11 +91,12 @@ class MultiModalClusteringMetric():
         }
 
         self.category_colors["NOT VALID"] = "red"  # Reserved for NOT VALID
+        self.category_colors["BAD_INFERENCE"] = "black"
         self.unknown_category_color = "black"  # Reserved for unknowns
 
 
         # Base dirs
-        self.results_dir = Path(__file__).resolve().parent / f"results/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}/experiment_{experiment['id']}"
+        self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
         self.quality_stats_csv = self.results_dir / f"quality.csv"
         self.quality_stats_noise_csv = self.results_dir / f"quality_w_noise.csv"
@@ -369,13 +375,13 @@ class MultiModalClusteringMetric():
         excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
         """
         # Extraer datos del experimento
-        experiment_id = self.experiment["id"]
+        run_id = self.run["run_id"]
         classification_lvl = self.classification_lvl
         n_prompt = self.n_prompt
         model_llava = self.model
-        model_clustering = self.experiment["clustering"]
-        eval_method = self.experiment["eval_method"]
-        score_best = self.experiment["score_w/o_penalty"]
+        model_clustering = self.run["params.clustering"]
+        eval_method = self.run["params.eval_method"]
+        score_best = self.run["metrics.score_wo_penalty"]
 
         # Preparar datos para los gráficos
         plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
@@ -397,7 +403,7 @@ class MultiModalClusteringMetric():
         fig, axes = plt.subplots(2, 2, figsize=(25, 15))
         fig.suptitle(
             f"Category Distribution by Cluster (Excluding Noise)\n"
-            f"Experiment ID: {experiment_id}, Classification Level: {classification_lvl}, "
+            f"Run ID: {run_id}, Classification Level: {classification_lvl}, "
             f"Prompt: {n_prompt}, Llava Model: {model_llava}, Clustering Model: {model_clustering}\n"
             f"Evaluation Method: {eval_method}, Score (w/o Penalty): {score_best:.3f}, Total Images: {total_images}, Noise Images: {total_noise_images}", 
             fontsize=16
@@ -484,9 +490,9 @@ class MultiModalClusteringMetric():
 
             ax.set_title(
                 f"Category Distribution in Noise Cluster (-1)\n"
-                f"Experiment ID: {self.experiment['id']}, Classification Level: {self.classification_lvl}, "
-                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.experiment['clustering']}\n"
-                f"Evaluation Method: {self.experiment['eval_method']}, Score (w/o Penalty): {self.experiment['score_w/o_penalty']:.4f}, "
+                f"Experiment ID: {self.run['run_id']}, Classification Level: {self.classification_lvl}, "
+                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.run['params.clustering']}\n"
+                f"Evaluation Method: {self.run['params.eval_method']}, Score (w/o Penalty): {self.run['metrics.score_wo_penalty']:.4f}, "
                 f"Total Noise Images: {noise_data['count'].sum()}"
             )
             plt.tight_layout()
@@ -500,13 +506,13 @@ class MultiModalClusteringMetric():
         excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
         """
         # Extraer datos del experimento
-        experiment_id = self.experiment["id"]
+        experiment_id = self.run["run_id"]
         classification_lvl = self.classification_lvl
         n_prompt = self.n_prompt
         model_llava = self.model
-        model_clustering = self.experiment["clustering"]
-        eval_method = self.experiment["eval_method"]
-        score_best = self.experiment["score_w/o_penalty"]
+        model_clustering = self.run["params.clustering"]
+        eval_method = self.run["params.eval_method"]
+        score_best = self.run["metrics.score_wo_penalty"]
 
         # Preparar datos para los gráficos
         plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
@@ -637,9 +643,9 @@ class MultiModalClusteringMetric():
 
             ax.set_title(
                 f"Category Distribution in Noise Cluster (-1)\n"
-                f"Experiment ID: {self.experiment['id']}, Classification Level: {self.classification_lvl}, "
-                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.experiment['clustering']}\n"
-                f"Evaluation Method: {self.experiment['eval_method']}, Score (w/o Penalty): {self.experiment['score_w/o_penalty']:.4f}, "
+                f"Experiment ID: {self.run['run_id']}, Classification Level: {self.classification_lvl}, "
+                f"Prompt: {self.n_prompt}, Llava Model: {self.model}, Clustering Model: {self.run['params.clustering']}\n"
+                f"Evaluation Method: {self.run['params.eval_method']}, Score (w/o Penalty): {self.run['metrics.score_wo_penalty']:.4f}, "
                 f"Total Noise Images: {noise_data['count'].sum()}"
             )
             plt.tight_layout()

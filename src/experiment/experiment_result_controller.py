@@ -419,10 +419,10 @@ class ExperimentResultController():
         
         for i, run in runs.iterrows():
             if "silhouette" in self.eval_method:
-                # self.show_best_silhouette(run)
-                # self.show_best_scatter(run)
-                # self.show_best_scatter(run, keep_original_embeddings = False)
-                # self.show_best_scatter_with_centers(run)
+                self.show_best_silhouette(run)
+                self.show_best_scatter(run)
+                self.show_best_scatter(run, keep_original_embeddings = False)
+                self.show_best_scatter_with_centers(run)
                 self.show_best_clusters_counters_comparision(run)
             elif "davies" in self.eval_method:
                 self.show_best_scatter(run)
