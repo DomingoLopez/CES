@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # Obtain experiments config
     with open(experiments_file, 'r') as f:
         experiments_config = json.load(f)
-    result_list = []
+
     result_list_top_trials = []
     # All experiment
     for config in experiments_config:
@@ -169,8 +169,8 @@ if __name__ == "__main__":
                                                             n_cluster_range=None,
                                                             experiment_name=experiment_name)
         best_runs = experiment_controller.get_top_k_runs(top_k=1)
-        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=True )
-        experiment_controller.create_plots(runs=best_runs)
+        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False )
+        #experiment_controller.create_plots(runs=best_runs)
 
         # 4. RUN LLAVA INFERENCE
         for class_lvl in classification_lvl:
@@ -251,5 +251,5 @@ if __name__ == "__main__":
     # df_results = pd.DataFrame(result_list)
     # df_results.to_csv("results.csv",sep=";")
 
-    # df_results_top_k = pd.DataFrame(result_list_top_trials)
-    # df_results_top_k.to_csv("results_top_trials.csv",sep=";")
+    df_results_top_k = pd.DataFrame(result_list_top_trials)
+    df_results_top_k.to_csv("results_top_trials.csv",sep=";")

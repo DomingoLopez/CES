@@ -48,8 +48,9 @@ class MultiModalClusteringMetric():
         self.images_cluster_dict = images_cluster_dict
         self.llava_results_df= llava_results_df
         # Ajuste de las categorías que no están, porque el modelo las pone mal.
-        self.llava_results_df["category_llava"] = llava_results_df["category_llava"] if llava_results_df["category_llava"] in self.categories \
-                                                                                    else "BAD_INFERENCE"
+        self.llava_results_df["category_llava"] = self.llava_results_df["category_llava"].apply(
+                    lambda cat: cat if cat in self.categories else "BAD_INFERENCE"
+                    )
         self.cache = cache
         self.verbose = verbose
 
@@ -146,6 +147,7 @@ class MultiModalClusteringMetric():
         result_df = self.add_cluster_to_llava_inference()
 
         # Count distinct categories per cluster
+        print(result_df.head())
         category_counts = result_df.groupby(['cluster', 'category_llava']).size().reset_index(name='count')
 
         # Get stats from cluster

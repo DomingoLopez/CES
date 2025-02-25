@@ -237,7 +237,7 @@ class LlavaInference():
         """
         results = None
         try:
-            results = pd.read_csv(os.path.join(self.results_csv,"/inference_results.csv"),
+            results = pd.read_csv(self.results_csv,
                                   sep=";",
                                   header=0)
         except:
