@@ -26,6 +26,7 @@ from sklearn.datasets import make_blobs
 from sklearn.neighbors import NearestNeighbors
 from tqdm import tqdm
 import umap
+import cuml
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
@@ -586,7 +587,7 @@ class ExperimentResultController():
         if data.shape[1] > 2:
             # If shape > 1, we cannot use selected reduction params, cause it doesnt make sense
             if dim_red == "umap":
-                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
+                reducer = cuml.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
                 reduced_data = reducer.fit_transform(data)
             elif dim_red == "tsne":
                 reducer = TSNE(random_state=42, n_components=2)
@@ -664,7 +665,7 @@ class ExperimentResultController():
         if data.shape[1] > 2:
             # If shape > 1, we cannot use selected reduction params, cause it doesnt make sense
             if dim_red == "umap":
-                reducer = umap.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
+                reducer = cuml.UMAP(random_state=42, n_components=2, min_dist=0.2, n_neighbors=15)
                 reduced_data = reducer.fit_transform(data)
                 pca_centers = reducer.transform(best_centers)
             elif dim_red == "tsne":

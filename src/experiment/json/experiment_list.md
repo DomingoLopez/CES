@@ -1,10 +1,11 @@
-| ID | Dino Model | Normalization | Scaler   | Clustering | Dim. Reduction | Eval Method                    |
-|----|-----------|---------------|----------|-----------|----------------|--------------------------------|
-| 1  | small     | Sí            | –        | hdbscan   | umap           | silhouette                     |
-| 2  | small     | Sí            | standard | hdbscan   | umap           | silhouette                     |
-| 3  | base      | Sí            | –        | hdbscan   | umap           | silhouette                     |
-| 4  | base      | Sí            | standard | hdbscan   | umap           | silhouette                     |
-| 5  | base      | Sí            | –        | hdbscan   | umap           | davies_bouldin                 |
-| 6  | base      | Sí            | standard | hdbscan   | umap           | davies_bouldin                 |
-| 7  | base      | Sí            | –        | hdbscan   | umap           | silhouette_noise (100–600)     |
-| 8  | base      | Sí            | standard | hdbscan   | umap           | davies_noise (100–600)         |
+
+| ID  | Dino Model | Optimizer | Optuna Trials | Normalization | Scaler   | Dim. Red | Clustering | Eval Method       | Penalty | Penalty Range | Cache |
+|---- |-----------|-----------|---------------|--------------|----------|----------|------------|-------------------|---------|---------------|-------|
+| 0   | small    | optuna    | 400           | ✅          | None     | umap     | hdbscan    | silhouette       | None    | None          | 1     |
+| 1   | small    | optuna    | 400           | ✅          | standard | umap     | hdbscan    | silhouette       | None    | None          | 1     |
+| 2   | base     | optuna    | 400           | ✅          | None     | umap     | hdbscan    | silhouette       | None    | None          | 1     |
+| 3   | base     | optuna    | 400           | ✅          | standard | umap     | hdbscan    | silhouette       | None    | None          | 1     |
+| 4   | base     | optuna    | 400           | ✅          | None     | umap     | hdbscan    | davies_bouldin   | None    | None          | 1     |
+| 5   | base     | optuna    | 400           | ✅          | standard | umap     | hdbscan    | davies_bouldin   | None    | None          | 1     |
+| 6   | base     | optuna    | 400           | ✅          | None     | umap     | hdbscan    | silhouette_noise | range   | [100, 600]    | 1     |
+| 7   | base     | optuna    | 400           | ✅          | standard | umap     | hdbscan    | davies_noise     | range   | [100, 600]    | 1     |

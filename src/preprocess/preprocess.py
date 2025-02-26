@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.preprocessing import MaxAbsScaler, MinMaxScaler, RobustScaler, StandardScaler, normalize
-import umap
+#import umap
 
+import cuml
 
 
 class Preprocess:
@@ -250,7 +251,7 @@ class Preprocess:
             raise ValueError("No reduction params provided")
         
         logger.info(f"Using UMAP Dim. reduction. Params: {', '.join([f'{key}={value}' for key, value in self.reduction_params.items()])}")
-        reducer = umap.UMAP(random_state=42, **self.reduction_params)
+        reducer = cuml.UMAP(random_state=42, **self.reduction_params)
         umap_result = reducer.fit_transform(embeddings_df.values)
         umap_df = pd.DataFrame(data=umap_result)
         return umap_df
