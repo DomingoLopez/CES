@@ -49,7 +49,7 @@ class MultiModalClusteringMetric():
         self.llava_results_df= llava_results_df
         # Ajuste de las categorías que no están, porque el modelo las pone mal.
         self.llava_results_df["category_llava"] = self.llava_results_df["category_llava"].apply(
-                    lambda cat: cat if cat in self.categories else "BAD_INFERENCE"
+                    lambda cat: cat if cat in self.categories or cat == "NOT VALID" else "BAD_INFERENCE"
                     )
         self.cache = cache
         self.verbose = verbose
@@ -99,6 +99,7 @@ class MultiModalClusteringMetric():
         # Base dirs
         self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
+        self.results_inference_csv = self.results_dir / f"inference_results.csv"
         self.quality_stats_csv = self.results_dir / f"quality.csv"
         self.quality_stats_noise_csv = self.results_dir / f"quality_w_noise.csv"
         self.category_distribution_plot = self.results_dir / f"category_distribution.png"
@@ -130,6 +131,12 @@ class MultiModalClusteringMetric():
                 images_cluster_dict_reverse[image_name] = cluster
         # Done, now match image name, and add a column y llava_inference_results
         result_df = self.llava_results_df.copy()
+        result_df["img"] = result_df["img"].apply(
+                    lambda img_path: img_path.split("/")[-1]
+                    )
+        # Guardamos un csv con los resultados de la inferencia una vez asignado el cluster
+        result_df.to_csv(self.results_inference_csv, index=False, sep=';')
+
         result_df['cluster'] = result_df['img'].map(images_cluster_dict_reverse)
 
         return result_df
