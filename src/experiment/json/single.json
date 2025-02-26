@@ -1,22 +1,22 @@
 [
-    {   
-        "id": 0,
-        "dino_model": "small",
+    {
+        "id": 6,
+        "dino_model": "base",
         "optimizer" : "optuna",
-        "optuna_trials": 200,
+        "optuna_trials": 100,
         "normalization": true,
         "scaler" : null,
         "dim_red" : "umap",
         "reduction_parameters": {
-            "metric": ["cosine","euclidean"],
-            "n_components": [2,3,4,5,7],
-            "n_neighbors": [5, 10, 15, 20, 50],
-            "min_dist": [0.1, 0.3, 0.5, 0.7]
+            "metric": ["euclidean","cosine"],
+            "n_components": [4,5,6,7],
+            "n_neighbors": [5, 10, 15, 20],
+            "min_dist": [0.3, 0.5, 0.7]
         },
         "clustering" : "hdbscan",
-        "eval_method" : "silhouette",
-        "penalty" : null,
-        "penalty_range" : null,
+        "eval_method" : "silhouette_noise",
+        "penalty" : "range",
+        "penalty_range" : [100, 600],
         "cache" : 1
     }
 ]
