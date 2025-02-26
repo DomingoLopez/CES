@@ -88,7 +88,7 @@ def run_experiments(file, images, bbdd) -> None:
                                                             reduction_params=None,
                                                             n_cluster_range=None,
                                                             experiment_name=experiment_name)
-        best_run = experiment_controller.get_top_k_runs(top_k=1)
+        best_run = experiment_controller.get_top_k_runs(top_k=3)
 
         experiment_controller.create_cluster_dirs(images=images, runs=best_run, knn=None, copy_images=True )
         experiment_controller.create_plots(runs=best_run)
@@ -105,8 +105,8 @@ if __name__ == "__main__":
     # 1. OBTAIN IMAGES
     image_path ="./data/flickr/flickr_validated_imgs_7000"
     bbdd = "flickr"
-    #experiments_file = "src/experiment/json/experiments_optuna_all.json"
-    experiments_file = "src/experiment/json/single.json"
+    experiments_file = "src/experiment/json/experiments_optuna_all.json"
+    #experiments_file = "src/experiment/json/single.json"
     images = load_images(image_path)    
 
 
@@ -168,8 +168,8 @@ if __name__ == "__main__":
                                                             reduction_params=None,
                                                             n_cluster_range=None,
                                                             experiment_name=experiment_name)
-        best_runs = experiment_controller.get_top_k_runs(top_k=1)
-        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False )
+        best_runs = experiment_controller.get_top_k_runs(top_k=3)
+        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False)
         experiment_controller.create_plots(runs=best_runs)
 
     #     # 4. RUN LLAVA INFERENCE
