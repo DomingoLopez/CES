@@ -325,6 +325,7 @@ class Experiment():
                 with open("embeddings.pkl", "wb") as f:
                     pickle.dump(embeddings, f)
                 mlflow.log_artifact("embeddings.pkl")
+                os.remove("embeddings.pkl")
 
                 mlflow.log_param("n_clusters", n_clusters_best)
 
@@ -333,10 +334,12 @@ class Experiment():
                 with open("centers.pkl", "wb") as f:
                     pickle.dump(centers_best, f)
                 mlflow.log_artifact("centers.pkl")
+                os.remove("centers.pkl")
 
                 with open("labels.pkl", "wb") as f:
                     pickle.dump(labels_best, f)
                 mlflow.log_artifact("labels.pkl")
+                os.remove("labels.pkl")
 
                 label_counter_converted = {int(key): value for key, value in label_counter.items()}
                 mlflow.log_dict(label_counter_converted, "label_counter.json")
