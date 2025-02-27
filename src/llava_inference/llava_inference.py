@@ -60,6 +60,8 @@ class LlavaInference():
         self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
         categories_joins = ", ".join([category.upper() for category in self.categories])
 
+
+
         self.prompt_1 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
@@ -69,6 +71,7 @@ class LlavaInference():
             "3. Provide your response exclusively as the classification, without any additional explanation or commentary."
             )
         
+
         self.prompt_2 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
@@ -82,6 +85,27 @@ class LlavaInference():
 
         self.prompt_3 = (
             "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+            "3. If the image is not relevant to analyze cultural ecosystem services, classify it as NOT RELEVANT."
+            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+            )
+
+
+        self.prompt_4 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+            "Please adhere to the following rules:"
+            "1. You must not assign a category that is not listed above."
+            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+            "3. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+            )
+
+
+        self.prompt_5 = (
+            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
             f"Your task is to classify images into TWO of the following {len(self.categories)} categories: {categories_joins}. "
             "Please adhere to the following rules:"
             "1. You must assign ONLY TWO categories from the list given above."
@@ -91,12 +115,20 @@ class LlavaInference():
             )
         
         
+
+
         if n_prompt == 1:
             self.prompt = self.prompt_1 
         elif n_prompt == 2:
             self.prompt = self.prompt_2
-        else:
+        elif n_prompt == 3:
             self.prompt = self.prompt_3
+        elif n_prompt == 4:
+            self.prompt = self.prompt_4
+        elif n_prompt == 5:
+            self.prompt = self.prompt_5            
+        else:
+            self.prompt = self.prompt_2
 
 
 

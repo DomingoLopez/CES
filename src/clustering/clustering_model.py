@@ -66,6 +66,7 @@ class ClusteringModel(ABC):
         data : pd.DataFrame
             The dataset on which clustering will be performed.
         """
+        np.random.seed(42)
         self.data = data
         self.model_name = model_name
         # Setting up directories for saving results based on model_name
@@ -142,6 +143,7 @@ class ClusteringModel(ABC):
         centers : numpy.ndarray of shape (n_clusters, n_features)
             An array containing the calculated center of each cluster.
         """
+        np.random.seed(42)
         unique_labels = np.unique(labels)
         centers = []
         for label in unique_labels:
@@ -188,16 +190,16 @@ class ClusteringModel(ABC):
             - "proportional": Proportional penalty inversely related to `n_clusters`.
             - "range": Proportional penalty only when `n_clusters` is outside a specified range.
         """
-        
+        np.random.seed(42)
         # Define acceptable range for "range" penalty type
         if penalty_range is not None and penalty == "range":
             min_clusters, max_clusters = penalty_range
         
         # Objective function
         def objective(trial):
+            np.random.seed(42)
             # Build the model with suggested hyperparameters
             model = model_builder(trial)
-            np.random.seed(42)
             # Fit and predict
             labels = model.fit_predict(self.data)
             
