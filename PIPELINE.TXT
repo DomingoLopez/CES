@@ -1,0 +1,3 @@
+1. Terminar experimentos de Fliker 7000 imágenes. Dar mejores resultadso (mejores experimentos. PDF con el mejor experimento para etiquetar clústers. Asignación por modelo)
+2. Procesar de la misma forma Twitter
+3. Mejorar/Añadir nuevos modelos multimodales más potentes
