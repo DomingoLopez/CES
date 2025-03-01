@@ -322,7 +322,7 @@ class ExperimentResultController():
 
 
 
-    def get_cluster_images_dict(self, images, run, knn=None, save_result=True):
+    def get_cluster_images_dict(self, images, run, knn=None):
         """
         Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
         Returns knn points for each cluster in dict format in case knn is not None
@@ -366,10 +366,8 @@ class ExperimentResultController():
                     cluster_images_dict[label] = []
                 cluster_images_dict[label].append(images[i])
         
-        # Sort dictionary
-        if save_result:
-            self.cluster_images_dict = dict(sorted(cluster_images_dict.items()))
-        return self.cluster_images_dict
+        cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        return cluster_images_dict
 
 
 
@@ -382,7 +380,7 @@ class ExperimentResultController():
 
 
 
-    def create_clusters_pdf(self, images_dict_format, pdf_path):
+    def create_clusters_pdf(self, images, runs, knn=None):
         """
         Create a PDF where each page contains images arranged in a grid (6x5) for each cluster.
         
@@ -393,67 +391,74 @@ class ExperimentResultController():
         images_dict_format : dict
             Dictionary where keys are cluster IDs and values are lists of image file paths.
         """
-        # Estilos básicos de ReportLab
-        estilos = getSampleStyleSheet()
-        estilo_titulo = estilos['Heading1']
-        estilo_normal = estilos['Normal']
+        for i,run in runs.iterrows():
+            #Guardar PDF con las imágenes del cluster
+            pdf_path = os.path.join(self.get_cluster_run_path(run), "cluster_pdf.pdf")
+            images_dict_format = self.get_cluster_images_dict(images,run, knn=knn)
 
-        # Creamos el documento con tamaño de página "letter"
-        doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+            # Estilos básicos de ReportLab
+            estilos = getSampleStyleSheet()
+            estilo_titulo = estilos['Heading1']
+            estilo_normal = estilos['Normal']
 
-        # Lista donde iremos añadiendo los elementos (texto, tablas, etc.)
-        story = []
+            # Creamos el documento con tamaño de página "letter"
+            doc = SimpleDocTemplate(pdf_path, pagesize=letter)
 
-        # Recorremos cada clúster del diccionario
-        for cluster_id, rutas_imagenes in images_dict_format.items():
-            
-            # -- Añadimos el título con el número de cluster
-            titulo_cluster = Paragraph(f"Clúster {cluster_id}", estilo_titulo)
-            story.append(titulo_cluster)
-            story.append(Spacer(1, 12))  # Espacio debajo del título
+            # Lista donde iremos añadiendo los elementos (texto, tablas, etc.)
+            story = []
 
-            # Queremos una tabla de 6 filas x 5 columnas = 30 celdas máximo
-            filas = 6
-            columnas = 5
-            max_imgs = filas * columnas  # 30
-
-            # Tabla vacía (lista de listas)
-            tabla_datos = [[] for _ in range(filas)]
-
-            # Llenamos la tabla con imágenes (o espacios en blanco si faltan)
-            for i in range(max_imgs):
-                fila = i // columnas
-                col = i % columnas
+            # Recorremos cada clúster del diccionario
+            for cluster_id, rutas_imagenes in images_dict_format.items():
                 
-                if i < len(rutas_imagenes):
-                    ruta = str(rutas_imagenes[i])  # Convertimos Path a str si es necesario
-                    # Ajusta (width, height) según convenga
-                    img = Image(ruta)  
-                    tabla_datos[fila].append(img)
-                else:
-                    # Sin imagen, dejamos espacio vacío
-                    tabla_datos[fila].append("")
+                # -- Añadimos el título con el número de cluster
+                titulo_cluster = Paragraph(f"Clúster {cluster_id}", estilo_titulo)
+                story.append(titulo_cluster)
+                story.append(Spacer(1, 12))  # Espacio debajo del título
 
-            # Creamos la tabla con los datos de las imágenes
-            tabla = Table(tabla_datos)  
-            # Ajustar colWidths/rowHeights si deseas más espacio o escalado distinto
+                # Queremos una tabla de 6 filas x 5 columnas = 30 celdas máximo
+                filas = 6
+                columnas = 5
+                max_imgs = filas * columnas  # 30
 
-            # Definimos un estilo para la tabla (bordes, colores, etc. opcional)
-            estilo_tabla = TableStyle([
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ])
-            tabla.setStyle(estilo_tabla)
+                # Tabla vacía (lista de listas)
+                tabla_datos = [[] for _ in range(filas)]
 
-            # Añadimos la tabla al story
-            story.append(tabla)
+                # Llenamos la tabla con imágenes (o espacios en blanco si faltan)
+                for i in range(max_imgs):
+                    fila = i // columnas
+                    col = i % columnas
+                    
+                    if i < len(rutas_imagenes):
+                        ruta = str(rutas_imagenes[i])  # Convertimos Path a str si es necesario
+                        # Ajusta (width, height) según convenga
+                        max_width = 80
+                        max_height = 80
+                        img = Image(ruta, width=max_width, height=max_height)
+                        tabla_datos[fila].append(img)
+                    else:
+                        # Sin imagen, dejamos espacio vacío
+                        tabla_datos[fila].append("")
 
-            # Añadimos un salto de página para separar clústers
-            story.append(PageBreak())
+                # Creamos la tabla con los datos de las imágenes
+                tabla = Table(tabla_datos)  
+                # Ajustar colWidths/rowHeights si deseas más espacio o escalado distinto
 
-        # Finalmente construimos el documento
-        doc.build(story)
+                # Definimos un estilo para la tabla (bordes, colores, etc. opcional)
+                estilo_tabla = TableStyle([
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ])
+                tabla.setStyle(estilo_tabla)
+
+                # Añadimos la tabla al story
+                story.append(tabla)
+
+                # Añadimos un salto de página para separar clústers
+                story.append(PageBreak())
+
+            # Finalmente construimos el documento
+            doc.build(story)
 
 
 
@@ -470,10 +475,7 @@ class ExperimentResultController():
         
         for i,r in runs.iterrows():
             # Get all images in dict format asigned to cluster
-            images_dict_format = self.get_cluster_images_dict(images, r, knn=None)
-            # Do the same with knn, getting about the 30 images and putting that in different pages on a pdf
-            images_dict_format_knn_pdf = self.get_cluster_images_dict(images, r, knn=30)
-            # Continue creating clusters dirs
+            images_dict_format = self.get_cluster_images_dict(images, r, knn=knn)
             path_cluster = os.path.join(self.get_cluster_run_path(r), "clusters")
             cluster_data = []
             try:
@@ -490,20 +492,10 @@ class ExperimentResultController():
                 csv_path = os.path.join(self.get_cluster_run_path(r), "cluster_images.csv")
                 df = pd.DataFrame(cluster_data, columns=["cluster", "img"])
                 df.sort_values(by="cluster").to_csv(csv_path, index=False)
-                #Guardar PDF con las imágenes del cluster
-                pdf_path = os.path.join(self.get_cluster_run_path(r), "cluster_pdf.pdf")
-                # TODO: DESACOPLAR LA LLAMADA A CREACIÓN DEL DICCIONARIO KNN 
-                # PARA AÑADIR EL PATH CORRECTO A LAS NUEVAS IMAǴENES REDIMENSIONADAS
-                #self.create_clusters_pdf(images_dict_format_knn_pdf, pdf_path)
-                print(images_dict_format_knn_pdf)
             except (os.error) as ex:
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
                 print(message)
-
-
-
-
 
 
 

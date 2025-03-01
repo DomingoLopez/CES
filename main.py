@@ -45,10 +45,12 @@ if __name__ == "__main__":
 
     # 1. OBTAIN IMAGES
     image_path ="./data/flickr/flickr_validated_imgs_7000"
+    image_path_redimensioned="./data/flickr/flickr_redimensioned_imgs_7000"
     bbdd = "flickr"
     #experiments_file = "src/experiment/json/experiments_optuna_all.json"
     experiments_file = "src/experiment/json/single.json"
     images = load_images(image_path)    
+    images_redimensioned = load_images(image_path_redimensioned)
 
 
     # START EXPERIMENTS
@@ -111,6 +113,8 @@ if __name__ == "__main__":
                                                             experiment_name=experiment_name)
         best_runs = experiment_controller.get_top_k_runs(top_k=3)
         experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False)
+        # Esto del pdf ya estaría a falta de refinar
+        #experiment_controller.create_clusters_pdf(images=images_redimensioned,knn=30,runs=best_runs)
         experiment_controller.create_plots(runs=best_runs)
 
     #     # 4. RUN LLAVA INFERENCE
