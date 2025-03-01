@@ -58,4 +58,3 @@ class ImageLoader:
         unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
         
         return list(unique_image_paths.values())
-
