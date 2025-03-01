@@ -1,4 +1,5 @@
 from collections import Counter
+from io import BytesIO
 from itertools import product
 import json
 import os
@@ -30,6 +31,14 @@ import cuml
 from src.clustering.clustering_factory import ClusteringFactory
 from src.clustering.clustering_model import ClusteringModel
 from src.preprocess.preprocess import Preprocess
+
+from PIL import Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+import os
+import math
 
 
 class ExperimentResultController():
@@ -313,7 +322,7 @@ class ExperimentResultController():
 
 
 
-    def get_cluster_images_dict(self, images, run, knn=None, save_result=True):
+    def get_cluster_images_dict(self, images, run, knn=None):
         """
         Finds the k-nearest neighbors for each centroid of clusters among points that belong to the same cluster.
         Returns knn points for each cluster in dict format in case knn is not None
@@ -357,16 +366,99 @@ class ExperimentResultController():
                     cluster_images_dict[label] = []
                 cluster_images_dict[label].append(images[i])
         
-        # Sort dictionary
-        if save_result:
-            self.cluster_images_dict = dict(sorted(cluster_images_dict.items()))
-        return self.cluster_images_dict
+        cluster_images_dict = dict(sorted(cluster_images_dict.items()))
+        return cluster_images_dict
 
 
 
 
     def get_cluster_run_path(self, run):
+        """
+        Returns the experiment path where all results are gonna be stored
+        """
         return os.path.join(self.cluster_dir, f"{self.experiment_name}/run_{run['run_id']}_{self.eval_method}_{run['metrics.score_wo_penalty']:.3f}")
+
+
+
+    def create_clusters_pdf(self, images, runs, knn=None):
+        """
+        Create a PDF where each page contains images arranged in a grid (6x5) for each cluster.
+        
+        Parameters:
+        -----------
+        run : object
+            Represents the current run (used to define la ruta de guardado).
+        images_dict_format : dict
+            Dictionary where keys are cluster IDs and values are lists of image file paths.
+        """
+        for i,run in runs.iterrows():
+            #Guardar PDF con las imágenes del cluster
+            pdf_path = os.path.join(self.get_cluster_run_path(run), "cluster_pdf.pdf")
+            images_dict_format = self.get_cluster_images_dict(images,run, knn=knn)
+
+            # Estilos básicos de ReportLab
+            estilos = getSampleStyleSheet()
+            estilo_titulo = estilos['Heading1']
+            estilo_normal = estilos['Normal']
+
+            # Creamos el documento con tamaño de página "letter"
+            doc = SimpleDocTemplate(pdf_path, pagesize=letter)
+
+            # Lista donde iremos añadiendo los elementos (texto, tablas, etc.)
+            story = []
+
+            # Recorremos cada clúster del diccionario
+            for cluster_id, rutas_imagenes in images_dict_format.items():
+                
+                # -- Añadimos el título con el número de cluster
+                titulo_cluster = Paragraph(f"Clúster {cluster_id}", estilo_titulo)
+                story.append(titulo_cluster)
+                story.append(Spacer(1, 12))  # Espacio debajo del título
+
+                # Queremos una tabla de 6 filas x 5 columnas = 30 celdas máximo
+                filas = 6
+                columnas = 5
+                max_imgs = filas * columnas  # 30
+
+                # Tabla vacía (lista de listas)
+                tabla_datos = [[] for _ in range(filas)]
+
+                # Llenamos la tabla con imágenes (o espacios en blanco si faltan)
+                for i in range(max_imgs):
+                    fila = i // columnas
+                    col = i % columnas
+                    
+                    if i < len(rutas_imagenes):
+                        ruta = str(rutas_imagenes[i])  # Convertimos Path a str si es necesario
+                        # Ajusta (width, height) según convenga
+                        max_width = 80
+                        max_height = 80
+                        img = Image(ruta, width=max_width, height=max_height)
+                        tabla_datos[fila].append(img)
+                    else:
+                        # Sin imagen, dejamos espacio vacío
+                        tabla_datos[fila].append("")
+
+                # Creamos la tabla con los datos de las imágenes
+                tabla = Table(tabla_datos)  
+                # Ajustar colWidths/rowHeights si deseas más espacio o escalado distinto
+
+                # Definimos un estilo para la tabla (bordes, colores, etc. opcional)
+                estilo_tabla = TableStyle([
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+                    ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ])
+                tabla.setStyle(estilo_tabla)
+
+                # Añadimos la tabla al story
+                story.append(tabla)
+
+                # Añadimos un salto de página para separar clústers
+                story.append(PageBreak())
+
+            # Finalmente construimos el documento
+            doc.build(story)
 
 
 
@@ -374,13 +466,16 @@ class ExperimentResultController():
     def create_cluster_dirs(self, images, runs, knn=None, copy_images=True):
         """
         Create a dir for every cluster given in dictionary of images. 
-        This is how we are gonna send that folder to ugr gpus
+        Move images to those clusters dirs
+        Create csv with images asigned to each cluster
+        Create pdf with knn(30) closest images to centroid asigned to each cluster
         """
         # logger.info("Copying images from Data path to cluster dirs")
         # For every key (cluster index)
         
         for i,r in runs.iterrows():
-            images_dict_format = self.get_cluster_images_dict(images, r)
+            # Get all images in dict format asigned to cluster
+            images_dict_format = self.get_cluster_images_dict(images, r, knn=knn)
             path_cluster = os.path.join(self.get_cluster_run_path(r), "clusters")
             cluster_data = []
             try:
@@ -401,10 +496,6 @@ class ExperimentResultController():
                 template = "An exception of type {0} occurred. Arguments:\n{1!r}"
                 message = template.format(type(ex).__name__, ex.args)
                 print(message)
-
-
-
-
 
 
 

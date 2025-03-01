@@ -34,65 +34,6 @@ def generate_embeddings(images, model) -> list:
     return embeddings
 
 
-def run_experiments(file, images, bbdd) -> None:
-   
-    # Load json file with all experiments
-    with open(file, 'r') as f:
-        experiments_config = json.load(f)
-    # For every configuration, run experiments
-    for config in experiments_config:
-        id = config.get("id")
-        dino_model = config.get("dino_model","small")
-        optimizer = config.get("optimizer", "optuna")
-        optuna_trials = config.get("optuna_trials", None)
-        normalization = config.get("normalization", True)
-        scaler = config.get("scaler", None)
-        dim_red = config.get("dim_red", None)
-        reduction_parameters = config.get("reduction_parameters", None)
-        clustering = config.get("clustering", "hdbscan")
-        eval_method = config.get("eval_method", "silhouette")
-        penalty = config.get("penalty", None)
-        penalty_range = config.get("penalty_range", None)
-        cache = config.get("cache", True)
-        experiment_name = f"{id}_{bbdd}_{dino_model}_{dim_red}_{eval_method}"
-        # Make and Run Experiment
-        logger.info(f"LOADING EXPERIMENT: {id}")
-
-        # Generate embeddings based on experiment model
-        embeddings = generate_embeddings(images, model=dino_model)
-        experiment = Experiment(
-            id,
-            experiment_name,
-            bbdd,
-            dino_model,
-            embeddings,
-            optimizer,
-            optuna_trials,
-            normalization,
-            dim_red,
-            reduction_parameters,
-            scaler,
-            clustering,
-            eval_method,
-            penalty,
-            penalty_range,
-            cache
-        )
-        experiment.run_experiment()
-
-        # Generate artifacts and results for every experiment. 
-        experiment_controller = ExperimentResultController(eval_method=eval_method, 
-                                                            n_images=len(images),
-                                                            dino_model=dino_model,
-                                                            dim_red=dim_red,
-                                                            reduction_params=None,
-                                                            n_cluster_range=None,
-                                                            experiment_name=experiment_name)
-        best_run = experiment_controller.get_top_k_runs(top_k=3)
-
-        experiment_controller.create_cluster_dirs(images=images, runs=best_run, knn=None, copy_images=True )
-        experiment_controller.create_plots(runs=best_run)
-
 
 if __name__ == "__main__": 
     
@@ -104,15 +45,17 @@ if __name__ == "__main__":
 
     # 1. OBTAIN IMAGES
     image_path ="./data/flickr/flickr_validated_imgs_7000"
+    image_path_redimensioned="./data/flickr/flickr_redimensioned_imgs_7000"
     bbdd = "flickr"
-    experiments_file = "src/experiment/json/experiments_optuna_all.json"
-    #experiments_file = "src/experiment/json/single.json"
+    #experiments_file = "src/experiment/json/experiments_optuna_all.json"
+    experiments_file = "src/experiment/json/single.json"
     images = load_images(image_path)    
+    images_redimensioned = load_images(image_path_redimensioned)
 
 
     # START EXPERIMENTS
     classification_lvl = [3]
-    prompts = [2]
+    prompts = [2,3,4]
     n_lvlm_categories = 1
     llava_models = ["llava1-6_7b"]
     # Obtain experiments config
@@ -170,6 +113,8 @@ if __name__ == "__main__":
                                                             experiment_name=experiment_name)
         best_runs = experiment_controller.get_top_k_runs(top_k=3)
         experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False)
+        # Esto del pdf ya estaría a falta de refinar
+        #experiment_controller.create_clusters_pdf(images=images_redimensioned,knn=30,runs=best_runs)
         experiment_controller.create_plots(runs=best_runs)
 
     #     # 4. RUN LLAVA INFERENCE
@@ -185,7 +130,7 @@ if __name__ == "__main__":
 
     #                 # 5. CALCULATE QUALITY METRICS
     #                 for idx, run in best_runs.iterrows():
-    #                     img_cluster_dict = experiment_controller.get_cluster_images_dict(images,run,None,False)
+    #                     img_cluster_dict = experiment_controller.get_cluster_images_dict(images,run,None,True)
     #                     # Quality metrics
     #                     lvm_lvlm_metric = MultiModalClusteringMetric(experiment_name,
     #                                                                 class_lvl,
@@ -196,12 +141,15 @@ if __name__ == "__main__":
     #                                                                 img_cluster_dict, 
     #                                                                 llava_results_df)
                         
-    #                     if prompt != 3:
-    #                         lvm_lvlm_metric.generate_stats()
-    #                     elif prompt == 3 and n_lvlm_categories != 0:
-    #                         lvm_lvlm_metric.generate_stats_multiple_categories(n_lvlm_categories)
-    #                     else:
-    #                         lvm_lvlm_metric.generate_stats()
+    #                     # if prompt != 3:
+    #                     #     lvm_lvlm_metric.generate_stats()
+    #                     # elif prompt == 3 and n_lvlm_categories != 0:
+    #                     #     lvm_lvlm_metric.generate_stats_multiple_categories(n_lvlm_categories)
+    #                     # else:
+    #                     #     lvm_lvlm_metric.generate_stats()
+
+    #                     # generate stats for lvlm results
+    #                     lvm_lvlm_metric.generate_stats()
                         
                         
     #                     # Obtain results
