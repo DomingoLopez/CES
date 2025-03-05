@@ -65,15 +65,30 @@ class HDBSCANClustering(ClusteringModel):
         hyperparameters suggested by each Optuna trial.
         """
         # Param/model builder for hdbscan
+        # EXPERIMENTOS 6,7,8,9,10,11
         def model_builder(trial):
             return hdbscan.HDBSCAN(
-                min_cluster_size=trial.suggest_int('min_cluster_size', 2, 8),
+                min_cluster_size=trial.suggest_int('min_cluster_size', 2, 6),
                 min_samples=trial.suggest_int('min_samples', 2, 4),
-                cluster_selection_epsilon=trial.suggest_float('cluster_selection_epsilon', 0.3, 3),
+                cluster_selection_epsilon=trial.suggest_float('cluster_selection_epsilon', 0.0, 0.5),
                 metric=trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev']),
                 cluster_selection_method=trial.suggest_categorical('cluster_selection_method',['eom','leaf']),
-                gen_min_span_tree=trial.suggest_categorical('gen_min_span_tree', [True, False])
+                gen_min_span_tree=trial.suggest_categorical('gen_min_span_tree', [True, False]),
+                # Para garantizar determinismo.
+                approx_min_span_tree=False
             )
+        # EXPERIMENTOS 0,2,3,4,5
+        # def model_builder(trial):
+        #     return hdbscan.HDBSCAN(
+        #         min_cluster_size=trial.suggest_int('min_cluster_size', 2, 8),
+        #         min_samples=trial.suggest_int('min_samples', 2, 4),
+        #         cluster_selection_epsilon=trial.suggest_float('cluster_selection_epsilon', 0.3, 3),
+        #         metric=trial.suggest_categorical('metric', ['euclidean', 'manhattan', 'chebyshev']),
+        #         cluster_selection_method=trial.suggest_categorical('cluster_selection_method',['eom','leaf']),
+        #         gen_min_span_tree=trial.suggest_categorical('gen_min_span_tree', [True, False]),
+        #         # Para garantizar determinismo.
+        #         approx_min_span_tree=False
+        #     )
         # return hdbscan.HDBSCAN(
         #         min_cluster_size=trial.suggest_int('min_cluster_size', 2, 20),
         #         min_samples=trial.suggest_int('min_samples', 2, 20),
@@ -86,43 +101,6 @@ class HDBSCANClustering(ClusteringModel):
         #     )
         # Call generic class method
         return self.run_optuna_generic(model_builder, evaluation_method, n_trials,penalty, penalty_range)
-
-
-
-    def run_gridsearch(self, evaluation_method="silhouette"):
-        """
-        Run GridSearchCV for the HDBSCAN clustering model with a specified evaluation method.
-
-        This method defines the hyperparameter grid specific to HDBSCAN clustering and 
-        calls the generic run_grid_search_generic method to perform the grid search.
-
-        Parameters
-        ----------
-        evaluation_method : str, optional
-            The evaluation metric to optimize. Can be either 'silhouette' for maximizing 
-            the silhouette score, or 'davies_bouldin' for minimizing the Davies-Bouldin score.
-            Defaults to 'silhouette'.
-
-        Returns
-        -------
-        GridSearchCV
-            The GridSearchCV object containing details of the best hyperparameters found and 
-            the associated evaluation score.
-        """
-        # Define the parameter grid for HDBSCAN
-        param_grid = {
-            'min_cluster_size': [3, 5, 7, 10, 15, 20, 25, 30],
-            'min_samples': [2, 5, 7, 10, 15, 17],
-            'cluster_selection_epsilon': [0.01, 0.05, 0.1, 0.2, 0.5, 0.7, 1.0],
-            'alpha' : [0.3, 0.7, 0.9, 1.0, 1.5],
-            'metric': ['euclidean', 'manhattan', 'chebyshev'],
-            'cluster_selection_method': ['eom','leaf']
-        }
-        
-        
-        # Call the generic grid search method
-        return self.run_grid_search_generic(param_grid, evaluation_method)
-
 
 
 

@@ -7,6 +7,7 @@ import pickle
 import tempfile
 import sys
 from typing import Optional
+import hdbscan
 import numpy as np
 import pandas as pd
 from loguru import logger
@@ -321,6 +322,7 @@ class Experiment():
                 mlflow.log_dict(reduction_params, "reduction_params.json")
 
                 mlflow.log_param("dimensions", reduction_params.get("n_components", None))
+
 
                 with open("embeddings.pkl", "wb") as f:
                     pickle.dump(embeddings, f)
