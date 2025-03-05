@@ -33,8 +33,7 @@ class MultiModalClusteringMetric():
                  images_cluster_dict: dict,
                  llava_results_df: pd.DataFrame,
                  cache: bool = True, 
-                 verbose: bool = False,
-                 add_noise_to_clusters = False):
+                 verbose: bool = False):
         """
         Loads cluster-images dict and llava inference results.
 
@@ -97,13 +96,9 @@ class MultiModalClusteringMetric():
         self.category_colors["BAD_INFERENCE"] = "black"
         self.unknown_category_color = "black"  # Reserved for unknowns
 
-        if(not add_noise_to_clusters):
-            # Base dirs
-            self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
-        else:
-            # With noise added to nearest cluster
-            self.results_dir = Path(__file__).resolve().parent / f"results_noise_added/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
 
+        # Base dirs
+        self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
         self.results_inference_csv = self.results_dir / f"inference_results.csv"
         self.quality_stats_csv = self.results_dir / f"quality.csv"
