@@ -134,8 +134,7 @@ class LlavaInference():
 
 
     def show_prompts(self):
-        print(self.prompt_1)
-        print(self.prompt_2)
+        pass
 
 
     def run(self):
@@ -285,9 +284,8 @@ if __name__ == "__main__":
 
     # Load images
     data_path = "data/flickr/flickr_validated_imgs_7000"
+    url = Path(__file__).resolve().parent / data_path
     bbdd = "flickr"
-
-    url = Path(__file__).resolve().parent.parent.parent / data_path
     image_extensions = ['.jpg', '.jpeg', '.png', '.bmp']
     # Find all image files recursively and filter by extension (lowercase only)
     image_paths = [img_path for img_path in url.rglob('*') if img_path.suffix.lower() in image_extensions]
@@ -296,5 +294,13 @@ if __name__ == "__main__":
     images =  list(unique_image_paths.values())
 
     # Execute llava inference
+    llava = LlavaInference(images,bbdd,3,1,"llava1-6_7b",False,False)
+    llava.run()
     llava = LlavaInference(images,bbdd,3,2,"llava1-6_7b",False,False)
+    llava.run()
+    llava = LlavaInference(images,bbdd,3,3,"llava1-6_7b",False,False)
+    llava.run()
+    llava = LlavaInference(images,bbdd,3,4,"llava1-6_7b",False,False)
+    llava.run()
+    llava = LlavaInference(images,bbdd,3,5,"llava1-6_7b",False,False)
     llava.run()

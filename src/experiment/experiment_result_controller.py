@@ -69,7 +69,7 @@ class ExperimentResultController():
             if dim_red == "umap":
                 self.reduction_params = {
                     "n_components": (2,25),
-                    "n_neighbors": (3,60),
+                    "n_neighbors": (3,80),
                     "min_dist": (0.1, 0.8)
                 }
             elif dim_red == "tsne":

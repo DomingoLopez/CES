@@ -3,6 +3,7 @@ from src.clustering.clust_agglomerative import AgglomerativeClusteringModel
 from src.clustering.clust_dbscan import DBSCANClustering
 from src.clustering.clustering_model import ClusteringModel
 from src.clustering.clust_hdbscan import HDBSCANClustering
+from src.clustering.clust_hdbscan_rapids import HDBSCANRapidsClustering
 from src.clustering.clust_kmeans import KMeansClustering
 
 
@@ -51,6 +52,8 @@ class ClusteringFactory:
             return KMeansClustering(data, **kwargs)
         elif method == "hdbscan":
             return HDBSCANClustering(data, **kwargs)
+        elif method == "hdbscan_rapids":
+            return HDBSCANRapidsClustering(data, **kwargs)
         elif method == "dbscan":
             return DBSCANClustering(data, **kwargs)
         elif method == "agglomerative":
