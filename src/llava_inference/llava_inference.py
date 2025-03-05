@@ -114,6 +114,11 @@ class LlavaInference():
             "4. This is an example output: PLANTS, VEGETATION AND HABITATS."
             )
         
+
+        self.prompt_10 = (
+            "Wrapper para clasificación con Ground Truth"
+            )
+        
         
 
 
@@ -126,7 +131,9 @@ class LlavaInference():
         elif n_prompt == 4:
             self.prompt = self.prompt_4
         elif n_prompt == 5:
-            self.prompt = self.prompt_5            
+            self.prompt = self.prompt_5 
+        elif n_prompt == 10:
+            self.prompt = self.prompt_10            
         else:
             self.prompt = self.prompt_2
 
@@ -271,6 +278,7 @@ class LlavaInference():
             results = pd.read_csv(self.results_csv,
                                   sep=";",
                                   header=0)
+            results['category_llava'] = results['category_llava'].apply(lambda x: x.upper())
         except:
             ValueError("File not found")
 

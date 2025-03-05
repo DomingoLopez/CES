@@ -58,8 +58,9 @@ if __name__ == "__main__":
 
 
     # START EXPERIMENTS
-    classification_lvl = [3]
-    prompts = [1,2,3,4]
+    classification_lvl = [10]
+    # prompts = [1,2,3,4]
+    prompts = [10]
     n_lvlm_categories = 1
     llava_models = ["llava1-6_7b"]
     # Obtain experiments config
@@ -116,11 +117,11 @@ if __name__ == "__main__":
                                                             n_cluster_range=None,
                                                             experiment_name=experiment_name)
         best_runs = experiment_controller.get_top_k_runs(top_k=3)
-        experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=True)
+        #experiment_controller.create_cluster_dirs(images=images, runs=best_runs, knn=None, copy_images=False)
 
         # Esto del pdf ya estaría a falta de refinar
         #experiment_controller.create_clusters_pdf(images=images_redimensioned,knn=30,runs=best_runs)
-        experiment_controller.create_plots(runs=best_runs)
+        #experiment_controller.create_plots(runs=best_runs)
         # 4. RUN LLAVA INFERENCE
         for class_lvl in classification_lvl:
             for model in llava_models:
@@ -131,6 +132,8 @@ if __name__ == "__main__":
                     llava_results_df = llava.get_results()
                     # Obtain categories
                     categories = llava.get_categories()
+                    
+                    
 
                     # 5. CALCULATE QUALITY METRICS
                     for idx, run in best_runs.iterrows():
@@ -197,9 +200,10 @@ if __name__ == "__main__":
                             # "quality_metric_w_noise":quality_results["quality_metric_w_noise"].iloc[0]
                         })
 
-
                         lvm_lvlm_metric.plot_cluster_categories_3()
 
+        df_results_top_k = pd.DataFrame(result_list_top_trials)
+        df_results_top_k.to_csv(f"results_top_trials_{id}.csv",sep=";")       
 
     # df_results = pd.DataFrame(result_list)
     # df_results.to_csv("results.csv",sep=";")

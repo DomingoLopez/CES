@@ -33,7 +33,8 @@ class MultiModalClusteringMetric():
                  images_cluster_dict: dict,
                  llava_results_df: pd.DataFrame,
                  cache: bool = True, 
-                 verbose: bool = False):
+                 verbose: bool = False,
+                 add_noise_to_clusters = False):
         """
         Loads cluster-images dict and llava inference results.
 
@@ -96,9 +97,13 @@ class MultiModalClusteringMetric():
         self.category_colors["BAD_INFERENCE"] = "black"
         self.unknown_category_color = "black"  # Reserved for unknowns
 
+        if(not add_noise_to_clusters):
+            # Base dirs
+            self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
+        else:
+            # With noise added to nearest cluster
+            self.results_dir = Path(__file__).resolve().parent / f"results_noise_added/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
 
-        # Base dirs
-        self.results_dir = Path(__file__).resolve().parent / f"results/{self.experiment_name}/run_{run['run_id']}_{run['params.eval_method']}_{run['metrics.score_wo_penalty']:.3f}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"cluster_vs_llava_stats.csv"
         self.results_inference_csv = self.results_dir / f"inference_results.csv"
         self.quality_stats_csv = self.results_dir / f"quality.csv"
@@ -137,6 +142,7 @@ class MultiModalClusteringMetric():
                     )
         # Guardamos un csv con los resultados de la inferencia una vez asignado el cluster
         result_df['cluster'] = result_df['img'].map(images_cluster_dict_reverse)
+        result_df['cluster'] = result_df['cluster'].astype('Int64')
         cluster_col = result_df.pop('cluster')
         result_df.insert(0, 'cluster', cluster_col)
         result_df.to_csv(self.results_inference_csv, index=False, sep=';')
@@ -516,14 +522,6 @@ class MultiModalClusteringMetric():
         Plot two stacked bar charts showing the category distribution within each cluster,
         excluding noise (cluster -1). Additionally, create a pie chart for the noise cluster.
         """
-        # Extraer datos del experimento
-        experiment_id = self.run["run_id"]
-        classification_lvl = self.classification_lvl
-        n_prompt = self.n_prompt
-        model_llava = self.model
-        model_clustering = self.run["params.clustering"]
-        eval_method = self.run["params.eval_method"]
-        score_best = self.run["metrics.score_wo_penalty"]
 
         # Preparar datos para los gráficos
         plot_data = self.result_stats_df[self.result_stats_df['cluster'].astype(str) != '-1'].copy()
@@ -532,8 +530,6 @@ class MultiModalClusteringMetric():
         plot_data = plot_data.sort_values(by='cluster_int').reset_index(drop=True)
         plot_data['cluster'] = plot_data['cluster_int'].astype(str)
 
-        total_images = self.result_stats_df['count'].sum()
-        total_noise_images = self.result_stats_df[self.result_stats_df['cluster'].astype(str) == '-1']['count'].sum()
 
         # Dividir clusters en 2 grupos para 2 gráficos
         n_clusters = plot_data['cluster'].nunique()
