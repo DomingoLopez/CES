@@ -282,77 +282,77 @@ class Experiment():
             with mlflow.start_run(run_name=f"run_{str(i)}"):
                 embeddings = self.__apply_preprocessing(reduction_params)
 
-                clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
-                study = clustering_model.run_optuna(
-                    evaluation_method=self._eval_method, n_trials=self._optuna_trials, penalty=self._penalty, penalty_range=self._penalty_range
-                )
-                best_trial = study.best_trial
-                n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
-                centers_best = best_trial.user_attrs.get("centers", None)
-                labels_best = best_trial.user_attrs.get("labels", None)
-                label_counter = Counter(labels_best)
-                score_best = best_trial.user_attrs.get("score_original", None)
-                noise_not_noise = {
-                    -1: label_counter.get(-1, 0),
-                    1: sum(v for k, v in label_counter.items() if k != -1)
-                }
-                # Depending on eval_method type
-                if self._eval_method == "silhouette":
-                    score_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
-                elif self._eval_method == "davies_bouldin":
-                    score_noise_ratio = (noise_not_noise.get(-1) + 1) / score_best
-                elif self._eval_method == "silhouette_noise":
-                    score_noise_ratio = score_best
-                elif self._eval_method == "davies_noise":
-                    score_noise_ratio = score_best
-                else:
-                    raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
+                # clustering_model = ClusteringFactory.create_clustering_model(self._clustering, embeddings)
+                # study = clustering_model.run_optuna(
+                #     evaluation_method=self._eval_method, n_trials=self._optuna_trials, penalty=self._penalty, penalty_range=self._penalty_range
+                # )
+                # best_trial = study.best_trial
+                # n_clusters_best = best_trial.user_attrs.get("n_clusters", None)
+                # centers_best = best_trial.user_attrs.get("centers", None)
+                # labels_best = best_trial.user_attrs.get("labels", None)
+                # label_counter = Counter(labels_best)
+                # score_best = best_trial.user_attrs.get("score_original", None)
+                # noise_not_noise = {
+                #     -1: label_counter.get(-1, 0),
+                #     1: sum(v for k, v in label_counter.items() if k != -1)
+                # }
+                # # Depending on eval_method type
+                # if self._eval_method == "silhouette":
+                #     score_noise_ratio = score_best / (noise_not_noise.get(-1) + 1)
+                # elif self._eval_method == "davies_bouldin":
+                #     score_noise_ratio = (noise_not_noise.get(-1) + 1) / score_best
+                # elif self._eval_method == "silhouette_noise":
+                #     score_noise_ratio = score_best
+                # elif self._eval_method == "davies_noise":
+                #     score_noise_ratio = score_best
+                # else:
+                #     raise ValueError(f"Unsupported evaluation method: {self._eval_method}")
                 
-                # Log de los parámetros
-                mlflow.log_param("id", self._id)
-                mlflow.log_param("bbdd", self._bbdd)
-                mlflow.log_param("optimizer", self._optimizer)
-                mlflow.log_param("clustering", self._clustering)
-                mlflow.log_param("eval_method", self._eval_method)
-                mlflow.log_param("optuna_trials", self._optuna_trials)
-                mlflow.log_param("normalization", self._normalization)
-                mlflow.log_param("scaler", self._scaler)
-                mlflow.log_param("dim_red", self._dim_red)
+                # # Log de los parámetros
+                # mlflow.log_param("id", self._id)
+                # mlflow.log_param("bbdd", self._bbdd)
+                # mlflow.log_param("optimizer", self._optimizer)
+                # mlflow.log_param("clustering", self._clustering)
+                # mlflow.log_param("eval_method", self._eval_method)
+                # mlflow.log_param("optuna_trials", self._optuna_trials)
+                # mlflow.log_param("normalization", self._normalization)
+                # mlflow.log_param("scaler", self._scaler)
+                # mlflow.log_param("dim_red", self._dim_red)
 
-                mlflow.log_dict(reduction_params, "reduction_params.json")
+                # mlflow.log_dict(reduction_params, "reduction_params.json")
 
-                mlflow.log_param("dimensions", reduction_params.get("n_components", None))
+                # mlflow.log_param("dimensions", reduction_params.get("n_components", None))
 
 
-                with open("embeddings.pkl", "wb") as f:
-                    pickle.dump(embeddings, f)
-                mlflow.log_artifact("embeddings.pkl")
-                os.remove("embeddings.pkl")
+                # with open("embeddings.pkl", "wb") as f:
+                #     pickle.dump(embeddings, f)
+                # mlflow.log_artifact("embeddings.pkl")
+                # os.remove("embeddings.pkl")
 
-                mlflow.log_param("n_clusters", n_clusters_best)
+                # mlflow.log_param("n_clusters", n_clusters_best)
 
-                mlflow.log_dict(study.best_params, "best_params.json")
+                # mlflow.log_dict(study.best_params, "best_params.json")
 
-                with open("centers.pkl", "wb") as f:
-                    pickle.dump(centers_best, f)
-                mlflow.log_artifact("centers.pkl")
-                os.remove("centers.pkl")
+                # with open("centers.pkl", "wb") as f:
+                #     pickle.dump(centers_best, f)
+                # mlflow.log_artifact("centers.pkl")
+                # os.remove("centers.pkl")
 
-                with open("labels.pkl", "wb") as f:
-                    pickle.dump(labels_best, f)
-                mlflow.log_artifact("labels.pkl")
-                os.remove("labels.pkl")
+                # with open("labels.pkl", "wb") as f:
+                #     pickle.dump(labels_best, f)
+                # mlflow.log_artifact("labels.pkl")
+                # os.remove("labels.pkl")
 
-                label_counter_converted = {int(key): value for key, value in label_counter.items()}
-                mlflow.log_dict(label_counter_converted, "label_counter.json")
+                # label_counter_converted = {int(key): value for key, value in label_counter.items()}
+                # mlflow.log_dict(label_counter_converted, "label_counter.json")
 
-                mlflow.log_dict(noise_not_noise, "noise_not_noise.json")
+                # mlflow.log_dict(noise_not_noise, "noise_not_noise.json")
 
-                mlflow.log_param("score_noise_ratio", score_noise_ratio)
-                mlflow.log_param("penalty", self._penalty)
-                mlflow.log_param("penalty_range", self._penalty_range)
-                mlflow.log_metric("score_w_penalty", study.best_value)
-                mlflow.log_metric("score_wo_penalty", score_best)
+                # mlflow.log_param("score_noise_ratio", score_noise_ratio)
+                # mlflow.log_param("penalty", self._penalty)
+                # mlflow.log_param("penalty_range", self._penalty_range)
+                # mlflow.log_metric("score_w_penalty", study.best_value)
+                # mlflow.log_metric("score_wo_penalty", score_best)
                 logger.info("EXPERIMENT ENDED.")
 
 

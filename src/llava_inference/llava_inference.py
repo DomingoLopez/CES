@@ -52,73 +52,188 @@ class LlavaInference():
         # Base dirs
         self.results_dir = Path(__file__).resolve().parent / f"results/{bbdd}/classification_lvl_{self.classification_lvl}/{self.model}/prompt_{self.n_prompt}"
         self.results_csv = self.results_dir / f"inference_results.csv"
-        self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
+        # self.classification_lvls_dir = Path(__file__).resolve().parent / "classification_lvls/"
         # Ensure directories exist
         os.makedirs(self.results_dir, exist_ok=True)
         
         # Load categories based on classification level
-        self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
-        categories_joins = ", ".join([category.upper() for category in self.categories])
+        # self.categories = pd.read_csv(os.path.join(self.classification_lvls_dir, f"classification_level_{self.classification_lvl}.csv"), header=None, sep=";").iloc[:, 0].tolist()
+        # categories_joins = ", ".join([category.upper() for category in self.categories])
 
 
 
-        self.prompt_1 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "Please adhere to the following rules:"
-            "1. You must not assign a category that is not listed above."
-            "2. If the image does not belong to any of the listed categories, classify it as 'NOT VALID'."
-            "3. Provide your response exclusively as the classification, without any additional explanation or commentary."
-            )
+        # self.prompt_1 = (
+        #     "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+        #     f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+        #     "Please adhere to the following rules:"
+        #     "1. You must not assign a category that is not listed above."
+        #     "2. If the image does not belong to any of the listed categories, classify it as 'NOT VALID'."
+        #     "3. Provide your response exclusively as the classification, without any additional explanation or commentary."
+        #     )
         
 
-        self.prompt_2 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "Please adhere to the following rules:"
-            "1. You must not assign a category that is not listed above."
-            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
-            "3. If the image is not clear enough or blurry, classify it as 'NOT VALID'."
-            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
-            )
+        # self.prompt_2 = (
+        #     "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+        #     f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+        #     "Please adhere to the following rules:"
+        #     "1. You must not assign a category that is not listed above."
+        #     "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+        #     "3. If the image is not clear enough or blurry, classify it as 'NOT VALID'."
+        #     "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+        #     )
         
 
-        self.prompt_3 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "Please adhere to the following rules:"
-            "1. You must not assign a category that is not listed above."
-            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
-            "3. If the image is not relevant to analyze cultural ecosystem services, classify it as NOT RELEVANT."
-            "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
-            )
+        # self.prompt_3 = (
+        #     "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+        #     f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+        #     "Please adhere to the following rules:"
+        #     "1. You must not assign a category that is not listed above."
+        #     "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+        #     "3. If the image is not relevant to analyze cultural ecosystem services, classify it as NOT RELEVANT."
+        #     "4. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+        #     )
 
 
-        self.prompt_4 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
-            f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
-            "Please adhere to the following rules:"
-            "1. You must not assign a category that is not listed above."
-            "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
-            "3. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
-            )
+        # self.prompt_4 = (
+        #     "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+        #     f"Your task is to classify images into one of the following {len(self.categories)} categories: {categories_joins}. "
+        #     "Please adhere to the following rules:"
+        #     "1. You must not assign a category that is not listed above."
+        #     "2. If the image does not clearly belong to any of the listed categories, classify it as the most similar category from the list."
+        #     "3. Provide your response EXCLUSIVELY as the classification, without any additional explanation or commentary."
+        #     )
 
 
-        self.prompt_5 = (
-            "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
-            f"Your task is to classify images into TWO of the following {len(self.categories)} categories: {categories_joins}. "
-            "Please adhere to the following rules:"
-            "1. You must assign ONLY TWO categories from the list given above."
-            "2. If the image does not clearly belong to any of the listed categories, classify it as the TWO most similar categories from the list."
-            "3. DO NOT provide any explanation."
-            "4. This is an example output: PLANTS, VEGETATION AND HABITATS."
-            )
+        # self.prompt_5 = (
+        #     "You are an Image Classification Assistant specialized in identifying cultural ecosystem services and the cultural contributions of nature to people. "
+        #     f"Your task is to classify images into TWO of the following {len(self.categories)} categories: {categories_joins}. "
+        #     "Please adhere to the following rules:"
+        #     "1. You must assign ONLY TWO categories from the list given above."
+        #     "2. If the image does not clearly belong to any of the listed categories, classify it as the TWO most similar categories from the list."
+        #     "3. DO NOT provide any explanation."
+        #     "4. This is an example output: PLANTS, VEGETATION AND HABITATS."
+        #     )
         
 
-        self.prompt_10 = (
-            "Wrapper para clasificación con Ground Truth"
-            )
+        # self.prompt_10 = (
+        #     "Wrapper para clasificación con Ground Truth"
+        #     )
+
+
+        self.prompt_1 = """
+        You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        Categories:
+        - Nature & Landscape: Images primarily depicting nature or landscapes, taken in wide shots.
+        - Fauna & Flora: Images primarily depicting animals, plants, or parts of them, taken in close-up or medium-distance shots.
+        - Birdwatching: Images focusing specifically on birds, captured in close-up or medium-distance shots, clearly centered on a bird or group of birds.
+        - Recreational: Images showing the use of recreational areas, including people spending time in public recreational spaces. Shots can be close-up, medium-distance, or wide.
+        - Sports: Images focused on sports activities or sports-related elements, taken in either close-up or wide shots.
+        - Cultural: Images depicting cultural elements, such as traditional crafts (e.g., livestock movements, traditional weaving, basketry, or Alpujarran jarapas), taken in close-up or wide shots.
+        - Religious: Images featuring religious elements (e.g., the Virgin Mary, processions, pilgrimages, churches), taken in close-up or wide shots.
+        - Gastronomy: Images primarily related to gastronomy, such as dining at a restaurant or traditional food products, taken in close-up or wide shots.
+        - Rural tourism: Images depicting rural tourism elements, such as rural accommodations, small villages, or countryside areas, taken in close-up, medium-distance, or wide shots.
+        - Urban: Images depicting urban elements, such as houses, streets, or parks, taken in close-up or wide shots.
+        - Sun & beach: Images depicting sun and beach tourism, such as people or events on the beach in a leisure context.
+        - Other type: Images related to CES but not fitting any of the above categories.
+
+        Return only the exact category name from the list above. Do not add any explanations, descriptions or additional information.
+        """
+
+        self.prompt_2 = """
+        You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        Categories:
+        - Nature & Landscape: Images primarily depicting nature or landscapes, taken in wide shots.
+        - Fauna & Flora: Images primarily depicting animals, plants, or parts of them, taken in close-up or medium-distance shots.
+        - Birdwatching: Images focusing specifically on birds, captured in close-up or medium-distance shots, clearly centered on a bird or group of birds.
+        - Recreational: Images showing the use of recreational areas, including people spending time in public recreational spaces. Shots can be close-up, medium-distance, or wide.
+        - Sports: Images focused on sports activities or sports-related elements, taken in either close-up or wide shots.
+        - Cultural: Images depicting cultural elements, such as traditional crafts (e.g., livestock movements, traditional weaving, basketry, or Alpujarran jarapas), taken in close-up or wide shots.
+        - Religious: Images featuring religious elements (e.g., the Virgin Mary, processions, pilgrimages, churches), taken in close-up or wide shots.
+        - Gastronomy: Images primarily related to gastronomy, such as dining at a restaurant or traditional food products, taken in close-up or wide shots.
+        - Rural tourism: Images depicting rural tourism elements, such as rural accommodations, small villages, or countryside areas, taken in close-up, medium-distance, or wide shots.
+        - Urban: Images depicting urban elements, such as houses, streets, or parks, taken in close-up or wide shots.
+        - Sun & beach: Images depicting sun and beach tourism, such as people or events on the beach in a leisure context.
+        - Other type: Images related to CES but not fitting any of the above categories.
+        - Not Relevant: Images that are not relevant for Cultural Ecosystem Services studies.
         
+        Return only the exact category name from the list above. Do not add any explanations, descriptions or additional information.
+        """
+        
+        self.prompt_3 = """
+        You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        Categories:
+        Landforms: Images primarily depicting land formations found in various landscapes, such as mountainous landscapes with high-altitude lagoons, coastal landscapes with visible bays and beaches, or river courses with riparian vegetation.
+        Other abiotic features: Images primarily depicting other non-living elements not covered in the "Landforms" category, such as the sky and the sea. Also includes close-up images of snow (e.g., snowflakes, snowballs) that cannot be located in mountainous landscapes.
+        Vegetation and habitats: Images primarily depicting vegetation and specific habitats (e.g., forests, farmland).
+        Animals: Images primarily depicting animals or parts of them.
+        Fungus: Images primarily depicting fungi or parts of them.
+        Plants: Images primarily depicting plants or parts of them.
+        Bridge: Images primarily depicting bridges.
+        Roads: Images primarily depicting roads.
+        Tracks and trails: Images primarily depicting paths, trails, and forest tracks.
+        Vehicle: Images primarily depicting vehicles of any kind (bus, car, train, motorcycle, etc.).
+        Accommodation: Images primarily depicting accommodations or their elements (e.g., house, bedroom, courtyard, etc.).
+        Commerce facilities: Images primarily depicting commercial facilities (e.g., local shops, markets, supermarkets, restaurants, etc.).
+        Gardens: Images primarily depicting gardens.
+        Shelter: Images primarily depicting shelters (e.g., mountain refuge, cabin, etc.).
+        Towns and villages: Images primarily depicting towns or their elements (e.g., squares, streets, etc.).
+        Cities: Images primarily depicting cities or their elements (e.g., squares, streets, etc.).
+        Dam: Images primarily depicting dams.
+        Wind farm: Images primarily depicting wind farms.
+        Breakwater: Images primarily depicting breakwaters.
+        Dock: Images primarily depicting docks.
+        Lighthouse: Images primarily depicting lighthouses.
+        Heritage and culture: Images primarily depicting elements related to cultural heritage.
+        Knowledge: Images primarily depicting scientific knowledge generation or environmental education activities.
+        Spiritual, symbolic and related connotations: Images primarily depicting spiritual or religious experiences.
+        Air activities: Images primarily depicting the practice of air sports.
+        Terrestrial activities: Images primarily depicting the practice of terrestrial sports and other recreational activities in nature.
+        Water activities: Images primarily depicting the practice of water sports and other recreational activities in water or on the beach.
+        Winter activities: Images primarily depicting the practice of winter sports or other recreational activities in the snow.
+
+        Return only the exact category name from the list above. Do not add any explanations or additional information.
+        """
+
+        self.prompt_4 = """
+        You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        Categories:
+        Landforms: Images primarily depicting land formations found in various landscapes, such as mountainous landscapes with high-altitude lagoons, coastal landscapes with visible bays and beaches, or river courses with riparian vegetation.
+        Other abiotic features: Images primarily depicting other non-living elements not covered in the "Landforms" category, such as the sky and the sea. Also includes close-up images of snow (e.g., snowflakes, snowballs) that cannot be located in mountainous landscapes.
+        Vegetation and habitats: Images primarily depicting vegetation and specific habitats (e.g., forests, farmland).
+        Animals: Images primarily depicting animals or parts of them.
+        Fungus: Images primarily depicting fungi or parts of them.
+        Plants: Images primarily depicting plants or parts of them.
+        Bridge: Images primarily depicting bridges.
+        Roads: Images primarily depicting roads.
+        Tracks and trails: Images primarily depicting paths, trails, and forest tracks.
+        Vehicle: Images primarily depicting vehicles of any kind (bus, car, train, motorcycle, etc.).
+        Accommodation: Images primarily depicting accommodations or their elements (e.g., house, bedroom, courtyard, etc.).
+        Commerce facilities: Images primarily depicting commercial facilities (e.g., local shops, markets, supermarkets, restaurants, etc.).
+        Gardens: Images primarily depicting gardens.
+        Shelter: Images primarily depicting shelters (e.g., mountain refuge, cabin, etc.).
+        Towns and villages: Images primarily depicting towns or their elements (e.g., squares, streets, etc.).
+        Cities: Images primarily depicting cities or their elements (e.g., squares, streets, etc.).
+        Dam: Images primarily depicting dams.
+        Wind farm: Images primarily depicting wind farms.
+        Breakwater: Images primarily depicting breakwaters.
+        Dock: Images primarily depicting docks.
+        Lighthouse: Images primarily depicting lighthouses.
+        Heritage and culture: Images primarily depicting elements related to cultural heritage.
+        Knowledge: Images primarily depicting scientific knowledge generation or environmental education activities.
+        Spiritual, symbolic and related connotations: Images primarily depicting spiritual or religious experiences.
+        Air activities: Images primarily depicting the practice of air sports.
+        Terrestrial activities: Images primarily depicting the practice of terrestrial sports and other recreational activities in nature.
+        Water activities: Images primarily depicting the practice of water sports and other recreational activities in water or on the beach.
+        Winter activities: Images primarily depicting the practice of winter sports or other recreational activities in the snow.
+        Not Relevant: Images that are not relevant for Cultural Ecosystem Services studies.
+
+        Return only the exact category name from the list above. Do not add any explanations or additional information.
+        """
+
         
 
 
@@ -129,11 +244,7 @@ class LlavaInference():
         elif n_prompt == 3:
             self.prompt = self.prompt_3
         elif n_prompt == 4:
-            self.prompt = self.prompt_4
-        elif n_prompt == 5:
-            self.prompt = self.prompt_5 
-        elif n_prompt == 10:
-            self.prompt = self.prompt_10            
+            self.prompt = self.prompt_4       
         else:
             self.prompt = self.prompt_2
 
@@ -260,11 +371,11 @@ class LlavaInference():
 
 
 
-    def get_categories(self):
-        """
-        Returns categories from classification_lvl
-        """
-        return [cat.upper() for cat in self.categories]
+    # def get_categories(self):
+    #     """
+    #     Returns categories from classification_lvl
+    #     """
+    #     return [cat.upper() for cat in self.categories]
 
 
 
@@ -302,13 +413,11 @@ if __name__ == "__main__":
     images =  list(unique_image_paths.values())
 
     # Execute llava inference
-    llava = LlavaInference(images,bbdd,3,1,"llava1-6_7b",False,False)
+    llava = LlavaInference(images,bbdd,0,1,"llava1-6_7b",False,False)
     llava.run()
-    llava = LlavaInference(images,bbdd,3,2,"llava1-6_7b",False,False)
+    llava = LlavaInference(images,bbdd,0,2,"llava1-6_7b",False,False)
     llava.run()
-    llava = LlavaInference(images,bbdd,3,3,"llava1-6_7b",False,False)
+    llava = LlavaInference(images,bbdd,0,3,"llava1-6_7b",False,False)
     llava.run()
-    llava = LlavaInference(images,bbdd,3,4,"llava1-6_7b",False,False)
-    llava.run()
-    llava = LlavaInference(images,bbdd,3,5,"llava1-6_7b",False,False)
+    llava = LlavaInference(images,bbdd,0,4,"llava1-6_7b",False,False)
     llava.run()
