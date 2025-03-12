@@ -233,6 +233,46 @@ class LlavaInference():
         """
 
         
+        # self.prompt_5 =  """
+        # You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        # Categories:
+        # Nature & Landscape/Seascape: Images primarily depicting nature or landscapes, taken in wide shots.
+        # Fauna/Flora: Images primarily depicting animals, plants, or their elements, taken in close-up or medium-distance shots.
+        # Recreational: Images showing people in public recreational spaces engaging in casual, leisure-based activities with no competitive or structured sports context. Examples include families having a picnic or camping, people walking in a park, children playing informally, or people resting in nature. Food and drink may be present, but they should not be the central focus of the image.
+        # Sports: Images focused on active sports participation, where the main theme is physical activity with a structured or competitive aspect. The image should clearly depict individuals practicing a sport with specific sports-related elements, such as courts, fields, tracks, goalposts, nets, or appropriate sports attire and equipment (e.g., soccer ball, tennis racket, bicycles, surfboards, ski poles). It may include organized events, training sessions, or competitive matches.
+        # Cultural: Images depicting elements of cultural heritage, traditions, arts, and local craftsmanship. Examples include traditional weaving, pottery, folkloric dances, historical buildings with cultural significance, or traditional markets. If a religious site (e.g., a church) is shown as an architectural or historical landmark without active worship, it should be classified as Cultural.
+        # Religious: Images emphasizing religious or spiritual elements, such as images of the Virgin Mary, processions, churches, pilgrimages, people in prayer, or places of worship actively being used for religious ceremonies. If the focus is on faith, devotion, or religious practice, classify it as Religious.
+        # Gastronomy: Images where food, beverages, or culinary experiences are the primary focus. This includes dishes, meals at restaurants, traditional food markets, cooking processes, and food preparation. If people are present, the emphasis should be on the act of eating, drinking, or cooking rather than general leisure activities.
+        # Rural tourism: Images depicting rural tourism elements, such as rural accommodations, small villages, or countryside areas, taken in close-up, medium-distance, or wide shots.
+        # Urban: Images depicting urban elements, such as houses, streets, or parks, taken in close-up or wide shots.
+        # Other type: Images related to CES but not fitting any of the above categories.
+        # Sun & Beach: Images depicting tourism, leisure, or recreational activities occurring in a beach environment. The presence of sand, sea, or direct sun exposure in a coastal setting should result in this classification. People may be engaged in leisure, relaxation, sports, or events, but if the beach, sand and sun are present, classify it as Sun & Beach.
+        # Not Relevant: Images that are not relevant for Cultural Ecosystem Services studies.
+
+        # Return only the exact category name from the list above. Do not add any explanations or additional information.
+        # """
+
+        self.prompt_5 =  """
+        You are an image classification system specialized in Cultural Ecosystem Services (CES). Your task is to classify the given image into exactly one of the predefined categories below. Return only the category name and nothing else. Do not provide explanations or additional text.
+
+        Categories:
+        Class_1: Images primarily depicting nature or landscapes, taken in wide shots.
+        Class_2: Images primarily depicting animals, plants, or their elements, taken in close-up or medium-distance shots.
+        Class_3: Images showing people in public recreational spaces engaging in casual, leisure-based activities with no competitive or structured sports context. Examples include families having a picnic or camping, people walking in a park, children playing informally, or people resting in nature. Food and drink may be present, but they should not be the central focus of the image.
+        Class_4: Images focused on active sports participation, where the main theme is physical activity with a structured or competitive aspect. The image should clearly depict individuals practicing a sport with specific sports-related elements, such as courts, fields, tracks, goalposts, nets, or appropriate sports attire and equipment (e.g., soccer ball, tennis racket, bicycles, surfboards, ski poles). It may include organized events, training sessions, or competitive matches.
+        Class_5: Images depicting elements of cultural heritage, traditions, arts, and local craftsmanship. Examples include traditional weaving, pottery, folkloric dances, historical buildings with cultural significance, or traditional markets. If a religious site (e.g., a church) is shown as an architectural or historical landmark without active worship, it should be classified as Cultural.
+        Class_6: Images emphasizing religious or spiritual elements, such as images of the Virgin Mary, processions, churches, pilgrimages, people in prayer, or places of worship actively being used for religious ceremonies. If the focus is on faith, devotion, or religious practice, classify it as Religious.
+        Class_7: Images where food, beverages, or culinary experiences are the primary focus. This includes dishes, meals at restaurants, traditional food markets, cooking processes, and food preparation. If people are present, the emphasis should be on the act of eating, drinking, or cooking rather than general leisure activities.
+        Class_8: Images depicting rural tourism elements, such as rural accommodations, small villages, or countryside areas, taken in close-up, medium-distance, or wide shots.
+        Class_9: Images depicting urban elements, such as houses, streets, or parks, taken in close-up or wide shots.
+        Class_10: Images related to CES but not fitting any of the above categories.
+        Class_11: Images depicting tourism, leisure, or recreational activities occurring in a beach environment. The presence of sand, sea, or direct sun exposure in a coastal setting should result in this classification. People may be engaged in leisure, relaxation, sports, or events, but if the beach, sand and sun are present, classify it as Sun & Beach.
+        Class_12: Images that are not relevant for Cultural Ecosystem Services studies.
+
+        Return only the exact category name from the list above. Do not add any explanations or additional information.
+        """
+
 
 
         if n_prompt == 1:
@@ -242,7 +282,9 @@ class LlavaInference():
         elif n_prompt == 3:
             self.prompt = self.prompt_3
         elif n_prompt == 4:
-            self.prompt = self.prompt_4       
+            self.prompt = self.prompt_4   
+        elif n_prompt == 5:
+            self.prompt = self.prompt_5       
         else:
             self.prompt = self.prompt_2
 
@@ -410,12 +452,13 @@ if __name__ == "__main__":
     unique_image_paths = {img_path.resolve().as_posix().lower(): img_path for img_path in image_paths}
     images =  list(unique_image_paths.values())
 
-    # Execute llava inference
-    llava = LlavaInference(images,bbdd,0,1,"llava1-6_7b",False,False)
+    images_test_path = "images_to_analyze.csv"
+    url_csv = Path(__file__).resolve().parent / images_test_path
+    img_to_analyze = pd.read_csv(url_csv,sep=";", header=0, index_col=0)
+    filtered_images = [img for img in images if str(img.resolve()).split("/")[-1] in list(img_to_analyze["img"])]
+
+    # # Execute llava inference
+    llava = LlavaInference(filtered_images,bbdd,"test",5,"llava1-6_7b",False,False)
     llava.run()
-    llava = LlavaInference(images,bbdd,0,2,"llava1-6_7b",False,False)
-    llava.run()
-    llava = LlavaInference(images,bbdd,0,3,"llava1-6_7b",False,False)
-    llava.run()
-    llava = LlavaInference(images,bbdd,0,4,"llava1-6_7b",False,False)
-    llava.run()
+
+ 
